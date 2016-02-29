@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/multiClass.iml" filepath="$PROJECT_DIR$/.idea/multiClass.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../multi_label_classification/.idea/multi_label_classification.iml" filepath="$PROJECT_DIR$/../multi_label_classification/.idea/multi_label_classification.iml" />
     </modules>
   </component>
 </project>
