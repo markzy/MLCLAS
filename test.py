@@ -4,11 +4,8 @@ from sklearn.svm import LinearSVC
 from sklearn.decomposition import PCA
 import numpy as np
 import multilabel_algorithms as ml
-import multilabel_algorithms_basic as mlb
-import scipy
 from scipy.sparse import csr_matrix
 import pickle
-import time
 import models
 
 files = ['data/scene_train', 'data/scene_test']
@@ -30,8 +27,13 @@ e = ml.BPMLL().fit(train_data_trans,train_target).predict(test_data_trans)
 # e = mlb.MultiLabelDecisionTree().fit(train_data_trans,train_target).predict(test_data_trans)
 # print('It took {0:0.5f} seconds'.format(time.time() - start))
 
-file_name = 'results/BPMLL.pkl'
-with open(file_name, 'wb') as output:
-    pickle.dump(e, output, pickle.HIGHEST_PROTOCOL)
+# file_name = 'results/BPMLL.pkl'
+# with open(file_name, 'wb') as output:
+#     pickle.dump(e, output, pickle.HIGHEST_PROTOCOL)
+#
+# exit()
 
-exit()
+em = models.EvaluationMetrics(a[3],e)
+print(em.hamming_loss())
+print(em.one_error())
+
