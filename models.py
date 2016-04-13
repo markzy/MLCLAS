@@ -25,6 +25,7 @@ class Nomalizer:
             X_array = self.X_array.astype('float32')
         else:
             X_array = copy.copy(self.X_array)
+
         samples, features = X_array.shape
         for i in range(features):
             array_min = np.min(X_array[:, i])

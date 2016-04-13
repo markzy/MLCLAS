@@ -23,14 +23,17 @@ expected = []
 
 start = time.time()
 for train, test in kf:
-    result.append(ml.BPMLL(regulization=0.1).fit(data[train], target[train]).predict(data[test]))
+    result.append(ml.BPMLL(print_procedure=True).fit(data[train], target[train]).predict(data[test]))
     expected.append(target[test])
 learn_time = time.time() - start
 
+print('training finished')
 
 file_name = 'results/BPMLL.pkl'
 with open(file_name, 'wb') as output_:
     pickle.dump(result, output_, pickle.HIGHEST_PROTOCOL)
+
+print('result has been serialized to local file')
 
 ems = [models.EvaluationMetrics(expected[0],result[0]), models.EvaluationMetrics(expected[1],result[1]), models.EvaluationMetrics(expected[2],result[2])]
 hl ,oe, cv, rl, ap = 0
@@ -48,3 +51,5 @@ with open('results/Reuters/first9_result','w') as output_:
     output_.write('ranking_loss:' + str(rl) + '\n')
     output_.write('average_precision:' + str(ap) + '\n')
     output_.write('It took {0:0.5f} seconds'.format(learn_time))
+
+print('all complete\n')

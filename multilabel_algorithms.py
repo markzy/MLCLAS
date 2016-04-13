@@ -1,6 +1,7 @@
 import math
 import random
 import numpy as np
+from numpy import linalg as lg
 import scipy
 import models
 from scipy.sparse import csr_matrix, hstack, vstack
@@ -212,36 +213,39 @@ class MLDecisionTree:
 
 # Backpropagation for Multi-Label Learning
 class BPMLL:
-    def __init__(self, epoch=20, regulization=0.0001, normalize=False):
+    def __init__(self, neural=0.2, epoch=20, regulization=0.0001, normalize=True, print_procedure=False):
         self.features = 0
         self.classes = 0
         self.samples = 0
         self.neural_num = 0
         self.normalize = normalize
-        self.epoch = epoch
-        self.neural_percent = 0.2
         self.learn_rate = 0.05
-        # these two attributes affects the output
+
+        # these attributes affects the output
+        self.neural_percent = neural
+        self.epoch = epoch
         self.weightsDecayCost = regulization
+
         self.error_small_change = 0.00001
         self.final_error = 0
         self.dataset = []
         self.threshold = None
-        self.wsj = []
-        self.vhs = []
+        self.wsj_matrix = []
+        self.vhs_matrix = []
         self.bias_b = []
         self.bias_a = []
+        self.print_procedure = print_procedure
 
     def fit(self, X, y):
 
         if isinstance(X, scipy.sparse.spmatrix):
             X_array = X.toarray()
         else:
-            X_array = X
+            X_array = np.array(X)
 
-        self.samples = len(X_array)
-        self.features = len(X_array[0])
-        self.classes = len(y[0])
+        y = np.array(y)
+        self.samples, self.features = X_array.shape
+        self.classes = y.shape[1]
 
         self.dataset = self.prepare_data(X_array, y)
         self.samples = len(self.dataset)
@@ -249,13 +253,13 @@ class BPMLL:
         if self.samples < self.features:
             raise Exception("Your must have more instances than features")
 
-        self.neural_num = round(self.features * self.neural_percent)
+        self.neural_num = int(self.features * self.neural_percent)
 
-        self.wsj = [[(random.random() - 0.5) for j in range(self.classes)] for s in range(self.neural_num)]
-        self.vhs = [[(random.random() - 0.5) for s in range(self.neural_num)] for h in range(self.features)]
+        self.wsj_matrix = np.array([[(random.random() - 0.5) for j in range(self.classes)] for s in range(self.neural_num)])
+        self.vhs_matrix = np.array([[(random.random() - 0.5) for s in range(self.neural_num)] for h in range(self.features)])
 
-        self.bias_b = [1 for i in range(self.classes)]
-        self.bias_a = [1 for i in range(self.neural_num)]
+        self.bias_b = np.ones((1, self.classes))
+        self.bias_a = np.ones((1, self.neural_num))
 
         self.iterate_training()
         return self
@@ -267,6 +271,7 @@ class BPMLL:
             X_array = models.Nomalizer(X_array, -0.8, 0.8).normalize()
 
         for i in range(self.samples):
+            # skip samples whose Yi or n-Yi is an empty set
             if np.sum(y) != 0 and np.sum(y) != self.classes:
                 dataset.append(models.TrainPair(X_array[i], y[i]))
 
@@ -274,92 +279,81 @@ class BPMLL:
 
     def iterate_training(self):
         prev_error = self.global_error()
-        # count = 0
         for ep in range(self.epoch):
+            if self.print_procedure:
+                print("entering epoch " + str(ep))
             random.shuffle(self.dataset)
+
             for i in range(self.samples):
                 self.fit_once(i)
 
             error = self.global_error()
             diff = prev_error - error
             if diff <= self.error_small_change * prev_error:
-                # print('prev ' + str(prev_error))
-                # print('now ' + str(error))
-                # print('count is ' + str(count) )
                 self.build_threshhold()
                 self.final_error = error
                 return
             prev_error = error
-            # count += 1
 
         self.build_threshhold()
         self.final_error = prev_error
         return
 
     def fit_once(self, index):
-        # skip samples whose Yi or n-Yi is an empty set
         x = self.dataset[index].attributes
+        x_vec = np.array([x]).T
         y = self.dataset[index].labels
-
-        b, c = self.forward_propagation(x)
-
-        d = [0 for j in range(self.classes)]
 
         isLabel = self.dataset[index].isLabel
         notLabel = self.dataset[index].notLabel
         isLabel_length = len(isLabel)
         notLabel_length = len(notLabel)
 
+        b, c = self.forward_propagation(x)
+
+        exp_func = math.exp
+        dj_sigma = np.zeros((1, self.classes))
         for j in range(self.classes):
-            dj_sigma = 0
+            tmp = 0
             if y[j] == 1:
                 for l in notLabel:
-                    dj_sigma += math.exp(-(c[j] - c[l]))
-            elif y[j] == 0:
+                    tmp += exp_func(-(c[j] - c[l]))
+            else:
                 for k in isLabel:
-                    dj_sigma -= math.exp(-(c[k] - c[j]))
-            d[j] = (1 / (isLabel_length * notLabel_length)) * dj_sigma * (1 + c[j]) * (1 - c[j])
+                    tmp -= exp_func(-(c[k] - c[j]))
+            dj_sigma[0, j] = tmp
 
-        e = [0 for s in range(self.neural_num)]
+        d = (1 / (isLabel_length * notLabel_length)) * dj_sigma * (1 + c) * (1 - c)
 
-        for s in range(self.neural_num):
-            es_sigma = 0
-            for j in range(self.classes):
-                es_sigma += d[j] * self.wsj[s][j]
-            e[s] = es_sigma * (1 + b[s]) * (1 - b[s])
+        # compute e matrix
+        b_vec = b.T
+        d_vec = d.T
+        es_sigma_vec = np.dot(self.wsj_matrix, d_vec)
+        e_vec = es_sigma_vec * (1 + b_vec) * (1 - b_vec)
 
-        for s in range(self.neural_num):
-            for j in range(self.classes):
-                self.wsj[s][j] += self.learn_rate * d[j] * b[s] - self.weightsDecayCost * self.wsj[s][j]
+        self.wsj_matrix = (1 - self.weightsDecayCost) * self.wsj_matrix + self.learn_rate * np.dot(b_vec, d)
 
-        for h in range(self.features):
-            for s in range(self.neural_num):
-                self.vhs[h][s] += self.learn_rate * e[s] * x[h] - self.weightsDecayCost * self.vhs[h][s]
+        e = e_vec.T
+        self.vhs_matrix = (1 - self.weightsDecayCost) * self.vhs_matrix + self.learn_rate * np.dot(x_vec, e)
 
-        for j in range(self.classes):
-            self.bias_b[j] += self.learn_rate * d[j] - self.weightsDecayCost * self.bias_b[j]
-
-        for s in range(self.neural_num):
-            self.bias_a[s] += self.learn_rate * e[s] - self.weightsDecayCost * self.bias_a[s]
+        self.bias_b = (1 - self.weightsDecayCost) * self.bias_b + self.learn_rate * d
+        self.bias_a = (1 - self.weightsDecayCost) * self.bias_a + self.learn_rate * e
 
         return
 
     def forward_propagation(self, x):
-        netb = [0 for s in range(self.neural_num)]
-        b = [0 for s in range(self.neural_num)]
-        for s in range(self.neural_num):
-            for h in range(self.features):
-                netb[s] += self.vhs[h][s] * x[h]
-            netb[s] += self.bias_a[s]
-            b[s] = models.ActivationFunction().activate(netb[s])
+        x = np.array([x])
 
-        netc = [0 for j in range(self.classes)]
-        c = [0 for j in range(self.classes)]
+        ac_func = models.ActivationFunction().activate()
+        netb = np.dot(x, self.vhs_matrix) + self.bias_a
+        b = np.zeros((1, self.neural_num))
+        for s in range(self.neural_num):
+            b[0, s] = ac_func(netb[0, s])
+
+        netc = np.dot(b,self.wsj_matrix) + self.bias_b
+        c = np.zeros((1, self.classes))
         for j in range(self.classes):
-            for s in range(self.neural_num):
-                netc[j] += self.wsj[s][j] * b[s]
-            netc[j] += self.bias_b[j]
-            c[j] = models.ActivationFunction().activate(netc[j])
+            c[0, j] = ac_func(netc[0, j])
 
         return b, c
 
@@ -367,11 +361,11 @@ class BPMLL:
         global_error = 0
         weights_square_sum = 0
 
-        for error_list in self.wsj:
+        for error_list in self.wsj_matrix:
             for error in error_list:
                 weights_square_sum += error * error
 
-        for error_list in self.vhs:
+        for error_list in self.vhs_matrix:
             for error in error_list:
                 weights_square_sum += error * error
 
@@ -380,6 +374,8 @@ class BPMLL:
 
         for error in self.bias_a:
             weights_square_sum += error * error
+
+        exp_func = math.exp
 
         for i in range(self.samples):
             sample_error_sigma = 0
@@ -393,7 +389,7 @@ class BPMLL:
             # if yi_length != 0 and nyi_length != 0:
             for k in yi:
                 for l in nyi:
-                    sample_error_sigma += math.exp(-(c[k] - c[l]))
+                    sample_error_sigma += exp_func(-(c[k] - c[l]))
             global_error += 1 / (yi_length * nyi_length) * sample_error_sigma
 
         global_error += self.weightsDecayCost * 0.5 * weights_square_sum
@@ -434,4 +430,3 @@ class BPMLL:
             result.add(sample_result, topLabel, c)
 
         return result
-
