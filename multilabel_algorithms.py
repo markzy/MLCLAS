@@ -1,7 +1,6 @@
 import math
 import random
 import numpy as np
-from numpy import linalg as lg
 import scipy
 import models
 from scipy.sparse import csr_matrix, hstack, vstack
@@ -213,7 +212,7 @@ class MLDecisionTree:
 
 # Backpropagation for Multi-Label Learning
 class BPMLL:
-    def __init__(self, neural=0.2, epoch=20, regulization=0.0001, normalize=True, print_procedure=False):
+    def __init__(self, neural=0.2, epoch=20, regulization=0.0001, normalize=False, print_procedure=False):
         self.features = 0
         self.classes = 0
         self.samples = 0
@@ -236,7 +235,7 @@ class BPMLL:
         self.bias_a = []
         self.print_procedure = print_procedure
 
-    def fit(self, X, y):
+    def init(self, X, y):
 
         if isinstance(X, scipy.sparse.spmatrix):
             X_array = X.toarray()
@@ -261,6 +260,10 @@ class BPMLL:
         self.bias_b = np.ones((1, self.classes))
         self.bias_a = np.ones((1, self.neural_num))
 
+        return self
+
+    def fit(self, X, y):
+        self.init(X,y)
         self.iterate_training()
         return self
 
@@ -317,19 +320,19 @@ class BPMLL:
             tmp = 0
             if y[j] == 1:
                 for l in notLabel:
-                    tmp += exp_func(-(c[j] - c[l]))
+                    tmp += exp_func(-(c[0,j] - c[0,l]))
             else:
                 for k in isLabel:
-                    tmp -= exp_func(-(c[k] - c[j]))
+                    tmp -= exp_func(-(c[0,k] - c[0,j]))
             dj_sigma[0, j] = tmp
 
-        d = (1 / (isLabel_length * notLabel_length)) * dj_sigma * (1 + c) * (1 - c)
+        d = (1 / (isLabel_length * notLabel_length)) * dj_sigma * (1 - np.square(c))
 
         # compute e matrix
         b_vec = b.T
         d_vec = d.T
         es_sigma_vec = np.dot(self.wsj_matrix, d_vec)
-        e_vec = es_sigma_vec * (1 + b_vec) * (1 - b_vec)
+        e_vec = es_sigma_vec * (1 - np.square(b_vec))
 
         self.wsj_matrix = (1 - self.weightsDecayCost) * self.wsj_matrix + self.learn_rate * np.dot(b_vec, d)
 
@@ -344,41 +347,24 @@ class BPMLL:
     def forward_propagation(self, x):
         x = np.array([x])
 
-        ac_func = models.ActivationFunction().activate()
+        ac_func = models.ActivationFunction().activate
         netb = np.dot(x, self.vhs_matrix) + self.bias_a
-        b = np.zeros((1, self.neural_num))
-        for s in range(self.neural_num):
-            b[0, s] = ac_func(netb[0, s])
+        b = ac_func(netb)
 
-        netc = np.dot(b,self.wsj_matrix) + self.bias_b
-        c = np.zeros((1, self.classes))
-        for j in range(self.classes):
-            c[0, j] = ac_func(netc[0, j])
+        netc = np.dot(b, self.wsj_matrix) + self.bias_b
+        c = ac_func(netc)
 
         return b, c
 
     def global_error(self):
         global_error = 0
-        weights_square_sum = 0
 
-        for error_list in self.wsj_matrix:
-            for error in error_list:
-                weights_square_sum += error * error
-
-        for error_list in self.vhs_matrix:
-            for error in error_list:
-                weights_square_sum += error * error
-
-        for error in self.bias_b:
-            weights_square_sum += error * error
-
-        for error in self.bias_a:
-            weights_square_sum += error * error
+        weights_square_sum = np.sum(np.square(self.wsj_matrix)) + np.sum(
+            np.square(self.vhs_matrix)) + np.sum(np.square(self.bias_b)) + np.sum(np.square(self.bias_a))
 
         exp_func = math.exp
 
         for i in range(self.samples):
-            sample_error_sigma = 0
             c = self.forward_propagation(self.dataset[i].attributes)[1]
 
             yi = self.dataset[i].isLabel
@@ -386,11 +372,8 @@ class BPMLL:
             yi_length = len(yi)
             nyi_length = len(nyi)
 
-            # if yi_length != 0 and nyi_length != 0:
-            for k in yi:
-                for l in nyi:
-                    sample_error_sigma += exp_func(-(c[k] - c[l]))
-            global_error += 1 / (yi_length * nyi_length) * sample_error_sigma
+            A = np.array([[c[0,l] - c[0,k] for k in yi] for l in nyi])
+            global_error += 1 / (yi_length * nyi_length) * np.sum(np.exp(A))
 
         global_error += self.weightsDecayCost * 0.5 * weights_square_sum
         return global_error
@@ -399,7 +382,7 @@ class BPMLL:
         modelOutputs = []
         idealLabels = []
         for i in range(self.samples):
-            c = self.forward_propagation(self.dataset[i].attributes)[1]
+            c = self.forward_propagation(self.dataset[i].attributes)[1][0]
             modelOutputs.append(c)
             idealLabels.append(self.dataset[i].labels)
 
@@ -418,7 +401,7 @@ class BPMLL:
         for i in range(samples):
             sample_result = []
             topLabel = None
-            c = self.forward_propagation(X_array[i])[1]
+            c = self.forward_propagation(X_array[i])[1][0]
             max_value = 0
             threshold = self.threshold.computeThreshold(c)
             for j in range(self.classes):

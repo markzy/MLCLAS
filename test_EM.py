@@ -23,7 +23,7 @@ expected = []
 
 start = time.time()
 for train, test in kf:
-    result.append(ml.BPMLL(print_procedure=True).fit(data[train], target[train]).predict(data[test]))
+    result.append(ml.BPMLL(normalize=True,print_procedure=True).fit(data[train], target[train]).predict(data[test]))
     expected.append(target[test])
 learn_time = time.time() - start
 

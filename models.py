@@ -116,10 +116,10 @@ class BPMLLResults:
 
 class ActivationFunction:
     def activate(self, _input):
-        return 2 / (1 + math.exp(-2 * _input)) - 1
+        return 2 / (1 + np.exp(-2 * _input)) - 1
 
-    def derivative(self, _input):
-        return 1 - math.pow(self.activate(_input), 2)
+    # def derivative(self, _input):
+    #     return 1 - math.pow(self.activate(_input), 2)
 
 
 class EvaluationMetrics:
@@ -222,5 +222,4 @@ class EvaluationMetrics:
             return self.ap
         else:
             raise Exception('please run ranking_loss function first!')
-
 
