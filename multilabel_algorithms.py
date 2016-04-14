@@ -393,7 +393,11 @@ class BPMLL:
         if features != self.features:
             raise Exception("inconsistent feature dimension")
 
-        X_array = X.toarray()
+        if isinstance(X, scipy.sparse.spmatrix):
+            X_array = X.toarray()
+        else:
+            X_array = np.array(X)
+
         if self.normalize is True:
             X_array = models.Nomalizer(X_array, -0.8, 0.8).normalize()
 

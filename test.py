@@ -17,21 +17,22 @@ train_target = np.array(MultiLabelBinarizer().fit_transform(data[1]))
 test_data = data[2]
 test_target = np.array(MultiLabelBinarizer().fit_transform(data[3]))
 
-feature_size = train_data.shape[1]
-pca = PCA(n_components=(feature_size * 10) // 100)
-train_data_trans = csr_matrix(pca.fit_transform(train_data.todense()))
-test_data_trans = csr_matrix(pca.transform(test_data.todense()))
-
-# job_server = pp.Server()
+# feature_size = train_data.shape[1]
+# pca = PCA(n_components=(feature_size * 10) // 100)
+# train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
+# test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 
 
 # start = time.time()
 def train(a, b, c):
-    return multilabel_algorithms.BPMLL(print_procedure=True,normalize=False).fit(a, b).predict(c)
+    return multilabel_algorithms.BPMLL(print_procedure=True, normalize=False).fit(a, b).predict(c)
 
 
-# job1 = job_server.submit(train, args=(train_data_trans, train_target, test_data_trans), modules=('multilabel_algorithms',))
-e = train(train_data_trans, train_target, test_data_trans)
+job_server = pp.Server()
+job1 = job_server.submit(train, args=(train_data, train_target, test_data), modules=('multilabel_algorithms',))
+# e = train(train_data_trans, train_target, test_data_trans)
+e = job1()
+
 em = models.EvaluationMetrics(data[3], e)
 print(em.hamming_loss())
 print(em.one_error())
@@ -43,5 +44,3 @@ print(em.one_error())
 #     pickle.dump(e, output, pickle.HIGHEST_PROTOCOL)
 #
 # exit()
-
-

@@ -5,6 +5,7 @@ from sklearn.cross_validation import KFold
 import multilabel_algorithms as ml
 import numpy as np
 import time
+import pp
 
 file_name = 'data/Reuters/first9_data.pkl'
 with open(file_name, 'rb') as input_:
@@ -18,14 +19,24 @@ data = np.array(data)
 target = np.array(MultiLabelBinarizer().fit_transform(target))
 
 kf = KFold(len(data), 3)
-result = []
+
+
+def train_fuc(train_data, train_target, test_data):
+    ml.BPMLL(normalize=True, print_procedure=True).fit(train_data, train_target).predict(test_data)
+
+
+job_server = pp.Server()
+
+jobs = []
 expected = []
 
 start = time.time()
 for train, test in kf:
-    result.append(ml.BPMLL(normalize=True,print_procedure=True).fit(data[train], target[train]).predict(data[test]))
+    jobs.append(job_server.submit(train_fuc, args=(data[train], target[train], data[test]), modules=('multilabel_algorithms',)))
     expected.append(target[test])
+
 learn_time = time.time() - start
+result = [jobs[0](), jobs[1](), jobs[2]()]
 
 print('training finished')
 
@@ -35,16 +46,17 @@ with open(file_name, 'wb') as output_:
 
 print('result has been serialized to local file')
 
-ems = [models.EvaluationMetrics(expected[0],result[0]), models.EvaluationMetrics(expected[1],result[1]), models.EvaluationMetrics(expected[2],result[2])]
-hl ,oe, cv, rl, ap = 0
+ems = [models.EvaluationMetrics(expected[0], result[0]), models.EvaluationMetrics(expected[1], result[1]),
+       models.EvaluationMetrics(expected[2], result[2])]
+hl, oe, cv, rl, ap = 0, 0, 0, 0, 0
 for i in range(3):
-    hl += ems[i].hamming_loss()/3
-    oe += ems[i].one_error()/3
-    cv += ems[i].coverage()/3
-    rl += ems[i].ranking_loss()/3
-    ap += ems[i].average_precision()/3
+    hl += ems[i].hamming_loss() / 3
+    oe += ems[i].one_error() / 3
+    cv += ems[i].coverage() / 3
+    rl += ems[i].ranking_loss() / 3
+    ap += ems[i].average_precision() / 3
 
-with open('results/Reuters/first9_result','w') as output_:
+with open('results/Reuters/first9_result', 'w') as output_:
     output_.write('hamming loss:' + str(hl) + '\n')
     output_.write('one error:' + str(oe) + '\n')
     output_.write('coverage:' + str(cv) + '\n')
@@ -52,4 +64,4 @@ with open('results/Reuters/first9_result','w') as output_:
     output_.write('average_precision:' + str(ap) + '\n')
     output_.write('It took {0:0.5f} seconds'.format(learn_time))
 
-print('all complete\n')
+print('all complete')
