@@ -17,30 +17,23 @@ train_target = np.array(MultiLabelBinarizer().fit_transform(data[1]))
 test_data = data[2]
 test_target = np.array(MultiLabelBinarizer().fit_transform(data[3]))
 
-# feature_size = train_data.shape[1]
-# pca = PCA(n_components=(feature_size * 10) // 100)
-# train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
-# test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
+feature_size = train_data.shape[1]
+pca = PCA(n_components=(feature_size * 10) // 100)
+train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
+test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
+
+e = multilabel_algorithms.BPMLL(print_procedure=True,epoch=40).fit(train_data_trans, train_target)
+res = e.predict(test_data_trans)
 
 
-# start = time.time()
-def train(a, b, c):
-    return multilabel_algorithms.BPMLL(print_procedure=True, normalize=False).fit(a, b).predict(c)
 
 
-job_server = pp.Server()
-job1 = job_server.submit(train, args=(train_data, train_target, test_data), modules=('multilabel_algorithms',))
-# e = train(train_data_trans, train_target, test_data_trans)
-e = job1()
-
-em = models.EvaluationMetrics(data[3], e)
-print(em.hamming_loss())
-print(em.one_error())
-# e = mlb.MultiLabelDecisionTree().fit(train_data_trans,train_target).predict(test_data_trans)
-# print('It took {0:0.5f} seconds'.format(time.time() - start))
-
-# file_name = 'results/BPMLL.pkl'
-# with open(file_name, 'wb') as output:
-#     pickle.dump(e, output, pickle.HIGHEST_PROTOCOL)
-#
-# exit()
+em = models.EvaluationMetrics(data[3], res)
+print(em.predictedLabels)
+print('----------')
+print(data[3])
+print('hamming loss:' + str(em.hamming_loss()))
+print('one error:' + str(em.one_error()))
+print('coverage:' + str(em.coverage()))
+print('ranking_loss:' + str(em.ranking_loss()))
+print('average_precision:' + str(em.average_precision()))

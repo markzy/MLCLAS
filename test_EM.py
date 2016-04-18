@@ -2,7 +2,7 @@ import pickle
 import models
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.cross_validation import KFold
-import multilabel_algorithms as ml
+import multilabel_algorithms
 import numpy as np
 import time
 import pp
@@ -15,14 +15,15 @@ file_name = 'data/Reuters/first9_target.pkl'
 with open(file_name, 'rb') as input_:
     target = pickle.load(input_)
 
+target = np.array(target)
 data = np.array(data)
-target = np.array(MultiLabelBinarizer().fit_transform(target))
+target_bi = np.array(MultiLabelBinarizer().fit_transform(target))
 
 kf = KFold(len(data), 3)
 
 
 def train_fuc(train_data, train_target, test_data):
-    ml.BPMLL(normalize=True, print_procedure=True).fit(train_data, train_target).predict(test_data)
+    return multilabel_algorithms.BPMLL(normalize=True, epoch=40,regulization=0.1).fit(train_data, train_target).predict(test_data)
 
 
 job_server = pp.Server()
@@ -32,19 +33,31 @@ expected = []
 
 start = time.time()
 for train, test in kf:
-    jobs.append(job_server.submit(train_fuc, args=(data[train], target[train], data[test]), modules=('multilabel_algorithms',)))
+    jobs.append(job_server.submit(train_fuc, args=(data[train], target_bi[train], data[test]), modules=('multilabel_algorithms',)))
     expected.append(target[test])
 
-learn_time = time.time() - start
 result = [jobs[0](), jobs[1](), jobs[2]()]
+learn_time = time.time() - start
 
 print('training finished')
 
-file_name = 'results/BPMLL.pkl'
+file_name = 'results/BPMLL/result.pkl'
 with open(file_name, 'wb') as output_:
     pickle.dump(result, output_, pickle.HIGHEST_PROTOCOL)
 
+file_name = 'results/BPMLL/expected.pkl'
+with open(file_name, 'wb') as output_:
+    pickle.dump(expected, output_, pickle.HIGHEST_PROTOCOL)
+
 print('result has been serialized to local file')
+
+# file_name = 'results/BPMLL/result.pkl'
+# with open(file_name, 'rb') as input_:
+#     result = pickle.load(input_)
+#
+# file_name = 'results/BPMLL/expected.pkl'
+# with open(file_name, 'rb') as input_:
+#     expected = pickle.load(input_)
 
 ems = [models.EvaluationMetrics(expected[0], result[0]), models.EvaluationMetrics(expected[1], result[1]),
        models.EvaluationMetrics(expected[2], result[2])]
