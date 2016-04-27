@@ -1,15 +1,12 @@
-from sklearn import datasets
-from sklearn.preprocessing import MultiLabelBinarizer
-from sklearn.svm import LinearSVC
-from sklearn.decomposition import PCA
 import numpy as np
-import multilabel_algorithms
 from scipy.sparse import csr_matrix
-import pickle
-import models
-import pp
+from sklearn import datasets
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import MultiLabelBinarizer
+from Models import BPMLL_models
+from BPMLL import BPMLL
 
-files = ['data/scene_train', 'data/scene_test']
+files = ['../data/scene_train', '../data/scene_test']
 
 data = datasets.load_svmlight_files(files, multilabel=True)
 train_data = data[0]
@@ -22,13 +19,10 @@ pca = PCA(n_components=(feature_size * 10) // 100)
 train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
 test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 
-e = multilabel_algorithms.BPMLL(print_procedure=True,epoch=40).fit(train_data_trans, train_target)
+e = BPMLL(print_procedure=True, epoch=40).fit(train_data_trans, train_target)
 res = e.predict(test_data_trans)
 
-
-
-
-em = models.EvaluationMetrics(data[3], res)
+em = BPMLL_models.EvaluationMetrics(data[3], res)
 print(em.predictedLabels)
 print('----------')
 print(data[3])

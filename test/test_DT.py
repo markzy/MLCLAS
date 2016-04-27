@@ -3,9 +3,11 @@ from scipy.sparse import csr_matrix
 from sklearn import datasets
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MultiLabelBinarizer
+from MLDecisionTree import MLDecisionTree
 import pickle
+from Metrics.UniversalMetrics import UniversalMetrics
 
-files = ['./data/scene_train', './data/scene_test']
+files = ['../data/scene_train', '../data/scene_test']
 
 data = datasets.load_svmlight_files(files, multilabel=True)
 train_data = data[0]
@@ -18,14 +20,12 @@ pca = PCA(n_components=(feature_size * 10) // 100)
 train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
 test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 
-file_name = './results/MLDecisionTree.pkl'
-with open(file_name, 'rb') as input_:
-    a = pickle.load(input_)
+a = MLDecisionTree().fit(train_data_trans,train_target).predict(test_data_trans)
 
-print(a)
-print('--------------------')
-print(data[3])
+file_name = '../results/MLDecisionTree.pkl'
+with open(file_name, 'wb') as output_:
+    pickle.dump(a, output_, pickle.HIGHEST_PROTOCOL)
 
-
-
+m = UniversalMetrics(6,test_target,a)
+print(m.accuracy())
 

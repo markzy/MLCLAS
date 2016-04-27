@@ -6,12 +6,6 @@ import math
 import operator
 
 
-# Definition of a simple tree node
-class TreeNode:
-    def __init__(self, data=None):
-        self.left = None
-        self.right = None
-        self.data = data
 
 
 class Nomalizer:
@@ -118,8 +112,8 @@ class ActivationFunction:
     def activate(self, _input):
         return 2 / (1 + np.exp(-2 * _input)) - 1
 
-    # def derivative(self, _input):
-    #     return 1 - math.pow(self.activate(_input), 2)
+    def derivative(self, _input):
+        return 1 - np.square(self.activate(_input))
 
 
 class EvaluationMetrics:

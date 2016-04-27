@@ -1,9 +1,11 @@
 import math
 import random
+
 import numpy as np
 import scipy
-import models
-from scipy.sparse import csr_matrix, hstack, vstack
+from scipy.sparse import vstack
+
+from Models import BPMLL_models
 
 
 # to-do: stop criterion can be refined
@@ -39,7 +41,7 @@ class MLDecisionTree:
         self.leaf_labels = []
         self.leaf_index = 0
         self.round = round_val
-        self.root = models.TreeNode()
+        self.root = BPMLL_models.TreeNode()
         # fit tree recursively
         self.fit_tree(X, y, self.root)
         print(self.leaf_labels)
@@ -79,9 +81,9 @@ class MLDecisionTree:
             X_right = vstack([X_right, X.getrow(right_indices[index])])
             y_right = np.concatenate((y_right, [y[right_indices[index]]]), axis=0)
 
-        tree_node.left = models.TreeNode()
+        tree_node.left = BPMLL_models.TreeNode()
         self.fit_tree(X_left, y_left, tree_node.left)
-        tree_node.right = models.TreeNode()
+        tree_node.right = BPMLL_models.TreeNode()
         self.fit_tree(X_right, y_right, tree_node.right)
 
     def get_best_feature(self, X, y):
@@ -264,11 +266,11 @@ class BPMLL:
         dataset = []
 
         if self.normalize is True:
-            X_array = models.Nomalizer(X_array, -0.8, 0.8).normalize()
+            X_array = BPMLL_models.Nomalizer(X_array, -0.8, 0.8).normalize()
 
         for i in range(self.samples):
             if np.sum(y) != 0 and np.sum(y) != self.classes:
-                dataset.append(models.TrainPair(X_array[i], y[i]))
+                dataset.append(BPMLL_models.TrainPair(X_array[i], y[i]))
 
         return dataset
 
@@ -351,7 +353,7 @@ class BPMLL:
             for h in range(self.features):
                 netb[s] += self.vhs[h][s] * x[h]
             netb[s] += self.bias_a[s]
-            b[s] = models.ActivationFunction().activate(netb[s])
+            b[s] = BPMLL_models.ActivationFunction().activate(netb[s])
 
         netc = [0 for j in range(self.classes)]
         c = [0 for j in range(self.classes)]
@@ -359,7 +361,7 @@ class BPMLL:
             for s in range(self.neural_num):
                 netc[j] += self.wsj[s][j] * b[s]
             netc[j] += self.bias_b[j]
-            c[j] = models.ActivationFunction().activate(netc[j])
+            c[j] = BPMLL_models.ActivationFunction().activate(netc[j])
 
         return b, c
 
@@ -407,7 +409,7 @@ class BPMLL:
             modelOutputs.append(c)
             idealLabels.append(self.dataset[i].labels)
 
-        self.threshold = models.ThresholdFunction(modelOutputs, idealLabels)
+        self.threshold = BPMLL_models.ThresholdFunction(modelOutputs, idealLabels)
 
     def predict(self, X):
         samples, features = X.shape
@@ -416,9 +418,9 @@ class BPMLL:
 
         X_array = X.toarray()
         if self.normalize is True:
-            X_array = models.Nomalizer(X_array, -0.8, 0.8).normalize()
+            X_array = BPMLL_models.Nomalizer(X_array, -0.8, 0.8).normalize()
 
-        result = models.BPMLLResults(self.final_error)
+        result = BPMLL_models.BPMLLResults(self.final_error)
         for i in range(samples):
             sample_result = []
             topLabel = None
