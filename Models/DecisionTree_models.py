@@ -7,30 +7,53 @@ import sys
 
 # Definition of a simple tree node
 class TreeNode:
-    def __init__(self, data=None):
+    def __init__(self):
         self.left = None
         self.right = None
-        self.isLeaf = False
-        self.splitInfo = data
         self.distribution = None
-        self.predictedLabels = None
-        self.estimatedError = None
 
-    def leaf(self,instances):
+        self.isLeaf = False
+        self.splitInfo = None
+
+    def leaf(self, instances):
         self.isLeaf = True
         if instances.samples == 0:
             return
 
-        labels = []
-        prob_y = np.sum(instances.bin_labels, axis=0) / instances.samples
-        for index in range(instances.classes):
-            if prob_y[index] > 0.5:
-                labels.append(index)
+        self.distribution = Distribution(instances)
 
-        self.predictedLabels = labels
-        self.distribution = None
+    def getEstimatedError(self, useStandardError=True):
+        if self.isLeaf:
+            return self.distribution.numIncorrect()
+        elif useStandardError:
+            totalnum = self.distribution.total() * self.distribution.classes
+            errors = self.left.getEstimatedError() + self.right.getEstimatedError()
+            standard_error = math.sqrt(errors * (totalnum - errors) / totalnum)
+            return errors + standard_error
+        else:
+            return self.left.getEstimatedError() + self.right.getEstimatedError()
 
-    def getEstimatedErrorForLeaf(self):
+    def getPrediectedLabels(self):
+        return self.distribution.predictedLabels()
+
+    def prune(self):
+        if self.isLeaf is True:
+            return
+
+        self.left.prune()
+        self.right.prune()
+
+        error_node = self.distribution.numIncorrect()
+        error_tree = self.getEstimatedError()
+
+        # prune the subtree if true
+        if error_node <= error_tree:
+            self.left = None
+            self.right = None
+            self.isLeaf = True
+            self.splitInfo = None
+
+        return
 
 
 class MLInstaces:
@@ -62,7 +85,7 @@ class MLInstaces:
         self.pure = y_list.count(y_list[0]) == len(y_list)
 
     def sort(self, attrIndex):
-        attr_values = self.all_attributes[:,attrIndex]
+        attr_values = self.all_attributes[:, attrIndex]
 
         attr_dic = {}
         for i in range(self.samples):
@@ -73,7 +96,7 @@ class MLInstaces:
         return True
 
     def split(self, attrIndex, splitValue):
-        attrValues = self.all_attributes[:,attrIndex]
+        attrValues = self.all_attributes[:, attrIndex]
         left = []
         right = []
         for index in range(self.samples):
@@ -86,7 +109,7 @@ class MLInstaces:
         right_indices = np.array(right)
         left_labels = self.bin_labels[left_indices]
         right_labels = self.bin_labels[right_indices]
-        return_distribution = Distribution((left_labels,right_labels))
+        return_distribution = Distribution((left_labels, right_labels))
 
         left_instances = MLInstaces(self.all_attributes[left_indices], left_labels)
         right_instances = MLInstaces(self.all_attributes[right_indices], right_labels)
@@ -95,17 +118,18 @@ class MLInstaces:
 
 class Distribution:
     def __init__(self, data):
-        if not isinstance(data,tuple):
+        if not isinstance(data, tuple):
+            self.classes = data.classes
             self.left = np.zeros(data.classes)
             self.right = np.sum(data.bin_labels[data.instances], axis=0)
             self.leftNum = 0
             self.rightNum = data.samples
         else:
             self.left = np.sum(data[0], axis=0)
-            self.right = np.sum(data[1],axis=0)
+            self.right = np.sum(data[1], axis=0)
             self.leftNum = len(data[0])
             self.rightNum = len(data[1])
-
+            self.classes = len(self.left)
 
     def shiftLeft(self, from_, to_, data):
         pop_up_indices = data.instances[from_:to_]
@@ -122,10 +146,34 @@ class Distribution:
     def perClass(self):
         return self.left + self.right
 
+    def numIncorrect(self):
+        perClassTotal = self.perClass()
+        predicted = self.predictedLabels()
+        numTotal = self.total()
+        sum_temp = np.zeros(self.classes)
+        for index in predicted:
+            sum_temp[index] = numTotal
+        return np.sum(np.fabs(perClassTotal - sum_temp))
+
+    def predictedLabels(self):
+        perClassTotal = self.perClass()
+        numTotal = self.total()
+        labels = []
+        count = 0
+        for index in range(len(perClassTotal)):
+            if perClassTotal[index] > numTotal / 2:
+                count += 1
+                labels.append(index)
+        if count == 0:
+            max_index, max_value = max(enumerate(perClassTotal), key=operator.itemgetter(1))
+            labels.append(max_index)
+
+        return labels
+
 
 # only support numeric attributes now
 class ModelSelection:
-    def __init__(self, useMDL=False,minNum=2):
+    def __init__(self, useMDL=False, minNum=2):
         self.useMDL = useMDL
         self.minNum = minNum
 
@@ -134,7 +182,7 @@ class ModelSelection:
         bestSplitValue = 0
         currentInfo = sys.float_info.max
         for i in range(instances.features):
-            model = C45Split(i, self.useMDL,self.minNum)
+            model = C45Split(i, self.useMDL, self.minNum)
             result = model.build(instances)
             if result is None:
                 continue
@@ -149,7 +197,7 @@ class ModelSelection:
 
 
 class C45Split:
-    def __init__(self, attrIndex, useMDL,minNum=2):
+    def __init__(self, attrIndex, useMDL, minNum=2):
         self.attrIndex = attrIndex
         self.useMDL = useMDL
         self.minor = 1e-5
@@ -160,7 +208,7 @@ class C45Split:
         count = 0
         splitIndex = 0
 
-        minNum = 0.1 * data.samples / data.classes
+        minNum = int(0.1 * data.samples / data.classes)
         if minNum <= self.minNum:
             minNum = self.minNum
         elif minNum > 25:
@@ -171,7 +219,6 @@ class C45Split:
         distribution = Distribution(data)
         currentInfo = Entropy.getEntropy(distribution)
         attrValues = data.all_attributes[:, attrIndex][data.instances]
-        bestSplitValue = attrValues[0]
         for i in range(1, data.samples):
             # equals to ignore bits
             if (attrValues[i - 1] + self.minor) < attrValues[i]:

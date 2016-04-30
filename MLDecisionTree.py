@@ -12,14 +12,16 @@ class MLDecisionTree:
         self.stop_criterion = 0
         self.learned = False
         self.minNum = 2
+        self.useStandardError = True
 
-    def fit(self, X, y, minNum=2):
+    def fit(self, X, y, minNum=5):
         instances = DTModels.MLInstaces(X, y)
         self.features = instances.features
         self.classes = instances.classes
         self.minNum = minNum
 
         self.fit_tree(instances, self.root)
+        self.root.prune()
         self.learned = True
         return self
 
@@ -27,28 +29,20 @@ class MLDecisionTree:
     def fit_tree(self, data, treenode):
         if data.samples <= 2 * self.minNum or data.pure is True:
             treenode.leaf(data)
-            # treenode.leaf = True
-            # if data.samples == 0:
-            #     return
-            #
-
             return
 
-        select_model = DTModels.ModelSelection(useMDL=True,minNum=self.minNum)
-        attr, value, distribution = select_model.select(data)
+        select_model = DTModels.ModelSelection(useMDL=True, minNum=self.minNum)
+        attr, value = select_model.select(data)
+        left_data, right_data, distribution = data.split(attr, value)
+
         treenode.distribution = distribution
         treenode.splitInfo = [attr, value]
         treenode.left = DTModels.TreeNode()
         treenode.right = DTModels.TreeNode()
 
         # split data
-        left_data, right_data = data.split(attr, value)
         self.fit_tree(left_data, treenode.left)
         self.fit_tree(right_data, treenode.right)
-
-    def buildLeaf(self, data):
-
-    def prune(self, treenode):
 
     def predict(self, X):
         if self.learned is False:
@@ -67,12 +61,12 @@ class MLDecisionTree:
         for index in range(samples):
             values = X_array[index]
             treenode = self.root
-            while treenode.leaf is False:
+            while not treenode.isLeaf:
                 attrIndex, splitValue = treenode.splitInfo
                 if values[attrIndex] <= splitValue:
                     treenode = treenode.left
                 else:
                     treenode = treenode.right
-            results.append(treenode.predictedLabels)
+            results.append(treenode.getPrediectedLabels())
 
         return results
