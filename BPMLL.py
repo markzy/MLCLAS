@@ -145,7 +145,7 @@ class BPMLL:
     def forward_propagation(self, x):
         x = np.array([x])
 
-        ac_func = BPMLL_models.ActivationFunction().activate
+        ac_func = BPMLL_models.ActivationFunction.activate
         netb = np.dot(x, self.vhs_matrix) + self.bias_a
         b = ac_func(netb)
 

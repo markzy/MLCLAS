@@ -6,8 +6,6 @@ import math
 import operator
 
 
-
-
 class Nomalizer:
     def __init__(self, X_array, min_value, max_value):
         self.X_array = X_array
@@ -109,11 +107,13 @@ class BPMLLResults:
 
 
 class ActivationFunction:
-    def activate(self, _input):
+    @staticmethod
+    def activate(_input):
         return 2 / (1 + np.exp(-2 * _input)) - 1
 
-    def derivative(self, _input):
-        return 1 - np.square(self.activate(_input))
+    @staticmethod
+    def derivative(_input):
+        return 1 - np.square(ActivationFunction.activate(_input))
 
 
 class EvaluationMetrics:
@@ -216,4 +216,3 @@ class EvaluationMetrics:
             return self.ap
         else:
             raise Exception('please run ranking_loss function first!')
-

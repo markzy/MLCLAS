@@ -276,313 +276,313 @@ class MLKNN:
         return res
 
 
-class TreeNode(object):
-    def __init__(self, data=None):
-        self.left = None
-        self.right = None
-        self.data = data
-
-
-class MLDecisionTree:
-    def __init__(self):
-        self.features = 0
-        self.samples = 0
-        self.classes = 0
-        self.stop_criterion = 0
-        self.root = None
-        self.leaf_labels = []
-        self.leaf_index = 0
-
-    def fit(self, X, y):
-        self.features = X.shape[1]
-        self.samples, self.classes = y.shape
-        self.stop_criterion = 10
-        self.leaf_labels = []
-        self.leaf_index = 0
-        self.root = TreeNode()
-        self.fit_tree(X, y, self.root)
-        self.plot_tree(self.root)
-        return self
-
-    def fit_tree(self, X, y, tree_node, mlent_all=0):
-        # print(X.shape)
-        # print(y.shape)
-        if mlent_all == 0:
-            mlent_all = self.get_mlent(y)
-
-        sample_num = X.shape[0]
-        if sample_num <= self.stop_criterion or mlent_all == 0:
-            labels = []
-            for i in range(self.classes):
-                if np.sum(y[:, i]) / sample_num > 0.5:
-                    labels.append(i)
-
-            tree_node.data = self.leaf_index
-            self.leaf_labels.append(labels)
-            self.leaf_index += 1
-            return
-
-        max_feature_ig_ratio = 0
-        max_feature_index = None
-        max_feature_dic = None
-        for feature_index in range(self.features):
-            feature_ig = mlent_all
-            raw_feature_values = X.getcol(feature_index).toarray().T[0].tolist()
-            feature_values = [round(num, 2) for num in raw_feature_values]
-            feature_dic = {}
-            for index in range(len(feature_values)):
-                if feature_values[index] in feature_dic:
-                    feature_dic[feature_values[index]].append(index)
-                else:
-                    feature_dic[feature_values[index]] = [index]
-
-            feature_split = 0
-            sorted_keys = sorted(feature_dic.keys())
-            for key in sorted_keys:
-                split_sample_indices = feature_dic[key]
-                split_count = len(split_sample_indices)
-                feature_split -= split_count / sample_num * math.log(split_count / sample_num, 2)
-                split_y = np.array([y[split_sample_indices[0]]])
-                for index in range(1, split_count):
-                    split_y = np.concatenate((split_y, [y[split_sample_indices[index]]]), axis=0)
-                feature_ig -= split_count / sample_num * self.get_mlent(split_y)
-            feature_ig_ratio = feature_ig / feature_split
-
-            if feature_ig_ratio > max_feature_ig_ratio:
-                max_feature_ig_ratio = feature_ig_ratio
-                max_feature_index = feature_index
-                max_feature_dic = feature_dic
-
-        sorted_feature_values = []
-        corresponding_indices = []
-        max_sorted_keys = sorted(max_feature_dic.keys())
-        for key in max_sorted_keys:
-            sample_indices = max_feature_dic[key]
-            for index in sample_indices:
-                sorted_feature_values.append(key)
-                corresponding_indices.append(index)
-
-        last_y = np.array([])
-        max_ig_ratio = 0
-        split_value = None
-        left_indices = None
-        right_indices = None
-        for i in range(1, len(corresponding_indices) - 1):
-            if not np.array_equal(y[corresponding_indices[i]], last_y):
-                last_y = y[corresponding_indices[i]]
-                y_left_indices = corresponding_indices[0:i]
-                y_right_indices = corresponding_indices[i:]
-                y_left = np.array([y[y_left_indices[0]]])
-                y_right = np.array([y[y_right_indices[0]]])
-                for index in range(1, len(y_left_indices)):
-                    y_left = np.concatenate((y_left, [y[y_left_indices[index]]]), axis=0)
-                for index in range(1, len(y_right_indices)):
-                    y_right = np.concatenate((y_right, [y[y_right_indices[index]]]), axis=0)
-                ig = mlent_all - (y_left.shape[0] / sample_num * self.get_mlent(y_left) + y_right.shape[0] / sample_num * self.get_mlent(y_right))
-                split_value = -len(y_left_indices) / sample_num * math.log(len(y_left_indices) / sample_num, 2) - len(y_right_indices) / sample_num * math.log(len(y_right_indices) / sample_num, 2)
-                split_value = 1
-                ig_ratio = ig / split_value
-                if ig_ratio > max_ig_ratio:
-                    max_ig_ratio = ig_ratio
-                    split_value = (sorted_feature_values[i - 1] + sorted_feature_values[i]) / 2
-                    left_indices = y_left_indices
-                    right_indices = y_right_indices
-
-        tree_node.data = [max_feature_index, split_value]
-        # print(tree_node.data)
-        X_left = X.getrow(left_indices[0])
-        y_left = np.array([y[left_indices[0]]])
-        X_right = X.getrow(right_indices[0])
-        y_right = np.array([y[right_indices[0]]])
-        for index in range(1, len(left_indices)):
-            X_left = vstack([X_left, X.getrow(left_indices[index])])
-            y_left = np.concatenate((y_left, [y[left_indices[index]]]), axis=0)
-        for index in range(1, len(right_indices)):
-            X_right = vstack([X_right, X.getrow(right_indices[index])])
-            y_right = np.concatenate((y_right, [y[right_indices[index]]]), axis=0)
-
-        tree_node.left = TreeNode()
-        self.fit_tree(X_left, y_left, tree_node.left)
-        tree_node.right = TreeNode()
-        self.fit_tree(X_right, y_right, tree_node.right)
-
-    def get_mlent(self, y):
-        if len(y.shape) == 2:
-            samples, classes = y.shape
-            if samples == 1:
-                return 0
-            pj = [np.sum(y[:, i]) / samples for i in range(classes)]
-            mlent = 0
-            for j in range(classes):
-                pjs = pj[j]
-                if pjs == 0 or pjs == 1:
-                    continue
-                mlent += -pjs * math.log(pjs, 2) - (1 - pjs) * math.log((1 - pjs), 2)
-            return mlent
-        else:
-            print(type(y))
-            print(y)
-            raise IndexError
-
-    def plot_tree(self, treenode):
-        print(treenode.data)
-        if treenode.left is not None:
-            self.plot_tree(treenode.left)
-        if treenode.right is not None:
-            self.plot_tree(treenode.right)
-
-    def predict(self, X):
-        predict_num, predict_features = X.shape
-        if predict_features != self.features:
-            exit("inconsistent feature number")
-
-        results = []
-        for i in range(predict_num):
-            feature_values = X.getrow(i).toarray()[0]
-            treenode = self.root
-            while isinstance(treenode.data, list):
-                feature_index = treenode.data[0]
-                feature_div_value = treenode.data[1]
-                if feature_values[feature_index] <= feature_div_value:
-                    treenode = treenode.left
-                else:
-                    treenode = treenode.right
-            if not isinstance(treenode.data, int):
-                exit("some leafnode has not result")
-            predicted_result_index = treenode.data
-            results.append(self.leaf_labels[predicted_result_index])
-        return results
-
-
-class MultiLabelDecisionTree:
-    def __init__(self):
-        self.samples = 0
-        self.classes = 0
-        self.y_reverse = []
-        self.stop_criterion = 0
-        self.root = None
-        self.leaf_labels = []
-        self.leaf_index = 0
-        self.features = 0
-
-    def fit(self, X, y):
-        self.features = X.shape[1]
-        self.samples, self.classes = y.shape
-        self.splitting_num = int(math.sqrt(self.samples))
-        self.leaf_labels = []
-        self.leaf_index = 0
-        if self.samples < self.splitting_num:
-            raise Exception("Too few samples")
-        self.root = TreeNode()
-        self.fit_tree(X, y, self.root)
-        return self
-
-    def fit_tree(self, X, y, tree_node, mlent_all=0):
-        if mlent_all == 0:
-            mlent_all = self.get_mlent(y)
-
-        sample_num = X.shape[0]
-        if sample_num <= self.splitting_num:
-            labels = []
-            for i in range(self.classes):
-                if np.sum(y[:, i]) / sample_num > 0.5:
-                    labels.append(i)
-
-            tree_node.data = self.leaf_index
-            self.leaf_labels.append(labels)
-            self.leaf_index += 1
-            return
-
-        splitting_point = [sample_num * x // self.splitting_num for x in range(1, self.splitting_num)]
-        all_statistics = []
-
-        for feature_index in range(self.features):
-            feature_values = X.getcol(feature_index).toarray()
-            sorted_feature_values = sorted(feature_values)
-            for point in splitting_point:
-                y_left = []
-                y_right = []
-                spp = (sorted_feature_values[point] + sorted_feature_values[point + 1]) / 2
-                for sample_index in range(sample_num):
-                    if feature_values[sample_index] <= spp:
-                        y_left.append(y[sample_index].tolist())
-                    else:
-                        y_right.append(y[sample_index].tolist())
-                y_left = np.array(y_left)
-                y_right = np.array(y_right)
-                if y_left.shape[0] == 0 or y_right.shape[0] == 0:
-                    all_statistics.append(0)
-                else:
-                    mlent_minus = self.get_mlent(y_left)
-                    mlent_plus = self.get_mlent(y_right)
-                    ig = mlent_all - (
-                        y_left.shape[0] / sample_num * mlent_minus + y_right.shape[0] / sample_num * mlent_plus)
-                    all_statistics.append(ig)
-
-        max_index = 0
-        max_ig = 0
-        for ig_index in range(len(all_statistics)):
-            if all_statistics[ig_index] > max_ig:
-                max_ig = all_statistics[ig_index]
-                max_index = ig_index
-
-        feature_index, remainder = divmod(max_index, self.splitting_num - 1)
-        feature_values = X.getcol(feature_index).toarray()
-        sorted_feature_values = sorted(feature_values)
-        split_value = (sorted_feature_values[splitting_point[remainder]] + sorted_feature_values[
-            splitting_point[remainder] + 1]) / 2
-
-        tree_node.data = [feature_index, split_value]
-        X_left = None
-        y_left = []
-        X_right = None
-        y_right = []
-        for sample_index in range(sample_num):
-            if feature_values[sample_index] <= split_value:
-                X_left = vstack([X_left, X.getrow(sample_index)]) if X_left is not None else X.getrow(sample_index)
-                y_left.append(y[sample_index].tolist())
-            else:
-                X_right = vstack([X_right, X.getrow(sample_index)]) if X_right is not None else X.getrow(sample_index)
-                y_right.append(y[sample_index].tolist())
-
-        if len(y_left) != 0:
-            tree_node.left = TreeNode()
-            self.fit_tree(X_left, np.array(y_left), tree_node.left)
-        if len(y_right) != 0:
-            tree_node.right = TreeNode()
-            self.fit_tree(X_right, np.array(y_right), tree_node.right)
-
-    def get_mlent(self, y):
-        samples, classes = y.shape
-        pj = [np.sum(y[:, i]) / samples for i in range(classes)]
-        sum = 0
-        for j in range(classes):
-            pjs = pj[j]
-            if pjs == 0 or pjs == 1:
-                continue
-
-            sum += -pjs * math.log(pjs, 2) - (1 - pjs) * math.log((1 - pjs), 2)
-
-        return sum
-
-    def predict(self, X):
-        predict_num, predict_features = X.shape
-        if predict_features != self.features:
-            exit("inconsistent feature number")
-
-        results = []
-        for i in range(predict_num):
-            feature_values = X.getrow(i).toarray()[0]
-            treenode = self.root
-            while isinstance(treenode.data, list):
-                feature_index = treenode.data[0]
-                feature_div_value = treenode.data[1]
-                if feature_values[feature_index] <= feature_div_value:
-                    treenode = treenode.left
-                else:
-                    treenode = treenode.right
-            if not isinstance(treenode.data, int):
-                exit("some leafnode has not result")
-            predicted_result_index = treenode.data
-            results.append(self.leaf_labels[predicted_result_index])
-        return results
+# class TreeNode(object):
+#     def __init__(self, data=None):
+#         self.left = None
+#         self.right = None
+#         self.data = data
+#
+#
+# class MLDecisionTree:
+#     def __init__(self):
+#         self.features = 0
+#         self.samples = 0
+#         self.classes = 0
+#         self.stop_criterion = 0
+#         self.root = None
+#         self.leaf_labels = []
+#         self.leaf_index = 0
+#
+#     def fit(self, X, y):
+#         self.features = X.shape[1]
+#         self.samples, self.classes = y.shape
+#         self.stop_criterion = 10
+#         self.leaf_labels = []
+#         self.leaf_index = 0
+#         self.root = TreeNode()
+#         self.fit_tree(X, y, self.root)
+#         self.plot_tree(self.root)
+#         return self
+#
+#     def fit_tree(self, X, y, tree_node, mlent_all=0):
+#         # print(X.shape)
+#         # print(y.shape)
+#         if mlent_all == 0:
+#             mlent_all = self.get_mlent(y)
+#
+#         sample_num = X.shape[0]
+#         if sample_num <= self.stop_criterion or mlent_all == 0:
+#             labels = []
+#             for i in range(self.classes):
+#                 if np.sum(y[:, i]) / sample_num > 0.5:
+#                     labels.append(i)
+#
+#             tree_node.data = self.leaf_index
+#             self.leaf_labels.append(labels)
+#             self.leaf_index += 1
+#             return
+#
+#         max_feature_ig_ratio = 0
+#         max_feature_index = None
+#         max_feature_dic = None
+#         for feature_index in range(self.features):
+#             feature_ig = mlent_all
+#             raw_feature_values = X.getcol(feature_index).toarray().T[0].tolist()
+#             feature_values = [round(num, 2) for num in raw_feature_values]
+#             feature_dic = {}
+#             for index in range(len(feature_values)):
+#                 if feature_values[index] in feature_dic:
+#                     feature_dic[feature_values[index]].append(index)
+#                 else:
+#                     feature_dic[feature_values[index]] = [index]
+#
+#             feature_split = 0
+#             sorted_keys = sorted(feature_dic.keys())
+#             for key in sorted_keys:
+#                 split_sample_indices = feature_dic[key]
+#                 split_count = len(split_sample_indices)
+#                 feature_split -= split_count / sample_num * math.log(split_count / sample_num, 2)
+#                 split_y = np.array([y[split_sample_indices[0]]])
+#                 for index in range(1, split_count):
+#                     split_y = np.concatenate((split_y, [y[split_sample_indices[index]]]), axis=0)
+#                 feature_ig -= split_count / sample_num * self.get_mlent(split_y)
+#             feature_ig_ratio = feature_ig / feature_split
+#
+#             if feature_ig_ratio > max_feature_ig_ratio:
+#                 max_feature_ig_ratio = feature_ig_ratio
+#                 max_feature_index = feature_index
+#                 max_feature_dic = feature_dic
+#
+#         sorted_feature_values = []
+#         corresponding_indices = []
+#         max_sorted_keys = sorted(max_feature_dic.keys())
+#         for key in max_sorted_keys:
+#             sample_indices = max_feature_dic[key]
+#             for index in sample_indices:
+#                 sorted_feature_values.append(key)
+#                 corresponding_indices.append(index)
+#
+#         last_y = np.array([])
+#         max_ig_ratio = 0
+#         split_value = None
+#         left_indices = None
+#         right_indices = None
+#         for i in range(1, len(corresponding_indices) - 1):
+#             if not np.array_equal(y[corresponding_indices[i]], last_y):
+#                 last_y = y[corresponding_indices[i]]
+#                 y_left_indices = corresponding_indices[0:i]
+#                 y_right_indices = corresponding_indices[i:]
+#                 y_left = np.array([y[y_left_indices[0]]])
+#                 y_right = np.array([y[y_right_indices[0]]])
+#                 for index in range(1, len(y_left_indices)):
+#                     y_left = np.concatenate((y_left, [y[y_left_indices[index]]]), axis=0)
+#                 for index in range(1, len(y_right_indices)):
+#                     y_right = np.concatenate((y_right, [y[y_right_indices[index]]]), axis=0)
+#                 ig = mlent_all - (y_left.shape[0] / sample_num * self.get_mlent(y_left) + y_right.shape[0] / sample_num * self.get_mlent(y_right))
+#                 split_value = -len(y_left_indices) / sample_num * math.log(len(y_left_indices) / sample_num, 2) - len(y_right_indices) / sample_num * math.log(len(y_right_indices) / sample_num, 2)
+#                 split_value = 1
+#                 ig_ratio = ig / split_value
+#                 if ig_ratio > max_ig_ratio:
+#                     max_ig_ratio = ig_ratio
+#                     split_value = (sorted_feature_values[i - 1] + sorted_feature_values[i]) / 2
+#                     left_indices = y_left_indices
+#                     right_indices = y_right_indices
+#
+#         tree_node.data = [max_feature_index, split_value]
+#         # print(tree_node.data)
+#         X_left = X.getrow(left_indices[0])
+#         y_left = np.array([y[left_indices[0]]])
+#         X_right = X.getrow(right_indices[0])
+#         y_right = np.array([y[right_indices[0]]])
+#         for index in range(1, len(left_indices)):
+#             X_left = vstack([X_left, X.getrow(left_indices[index])])
+#             y_left = np.concatenate((y_left, [y[left_indices[index]]]), axis=0)
+#         for index in range(1, len(right_indices)):
+#             X_right = vstack([X_right, X.getrow(right_indices[index])])
+#             y_right = np.concatenate((y_right, [y[right_indices[index]]]), axis=0)
+#
+#         tree_node.left = TreeNode()
+#         self.fit_tree(X_left, y_left, tree_node.left)
+#         tree_node.right = TreeNode()
+#         self.fit_tree(X_right, y_right, tree_node.right)
+#
+#     def get_mlent(self, y):
+#         if len(y.shape) == 2:
+#             samples, classes = y.shape
+#             if samples == 1:
+#                 return 0
+#             pj = [np.sum(y[:, i]) / samples for i in range(classes)]
+#             mlent = 0
+#             for j in range(classes):
+#                 pjs = pj[j]
+#                 if pjs == 0 or pjs == 1:
+#                     continue
+#                 mlent += -pjs * math.log(pjs, 2) - (1 - pjs) * math.log((1 - pjs), 2)
+#             return mlent
+#         else:
+#             print(type(y))
+#             print(y)
+#             raise IndexError
+#
+#     def plot_tree(self, treenode):
+#         print(treenode.data)
+#         if treenode.left is not None:
+#             self.plot_tree(treenode.left)
+#         if treenode.right is not None:
+#             self.plot_tree(treenode.right)
+#
+#     def predict(self, X):
+#         predict_num, predict_features = X.shape
+#         if predict_features != self.features:
+#             exit("inconsistent feature number")
+#
+#         results = []
+#         for i in range(predict_num):
+#             feature_values = X.getrow(i).toarray()[0]
+#             treenode = self.root
+#             while isinstance(treenode.data, list):
+#                 feature_index = treenode.data[0]
+#                 feature_div_value = treenode.data[1]
+#                 if feature_values[feature_index] <= feature_div_value:
+#                     treenode = treenode.left
+#                 else:
+#                     treenode = treenode.right
+#             if not isinstance(treenode.data, int):
+#                 exit("some leafnode has not result")
+#             predicted_result_index = treenode.data
+#             results.append(self.leaf_labels[predicted_result_index])
+#         return results
+#
+#
+# class MultiLabelDecisionTree:
+#     def __init__(self):
+#         self.samples = 0
+#         self.classes = 0
+#         self.y_reverse = []
+#         self.stop_criterion = 0
+#         self.root = None
+#         self.leaf_labels = []
+#         self.leaf_index = 0
+#         self.features = 0
+#
+#     def fit(self, X, y):
+#         self.features = X.shape[1]
+#         self.samples, self.classes = y.shape
+#         self.splitting_num = int(math.sqrt(self.samples))
+#         self.leaf_labels = []
+#         self.leaf_index = 0
+#         if self.samples < self.splitting_num:
+#             raise Exception("Too few samples")
+#         self.root = TreeNode()
+#         self.fit_tree(X, y, self.root)
+#         return self
+#
+#     def fit_tree(self, X, y, tree_node, mlent_all=0):
+#         if mlent_all == 0:
+#             mlent_all = self.get_mlent(y)
+#
+#         sample_num = X.shape[0]
+#         if sample_num <= self.splitting_num:
+#             labels = []
+#             for i in range(self.classes):
+#                 if np.sum(y[:, i]) / sample_num > 0.5:
+#                     labels.append(i)
+#
+#             tree_node.data = self.leaf_index
+#             self.leaf_labels.append(labels)
+#             self.leaf_index += 1
+#             return
+#
+#         splitting_point = [sample_num * x // self.splitting_num for x in range(1, self.splitting_num)]
+#         all_statistics = []
+#
+#         for feature_index in range(self.features):
+#             feature_values = X.getcol(feature_index).toarray()
+#             sorted_feature_values = sorted(feature_values)
+#             for point in splitting_point:
+#                 y_left = []
+#                 y_right = []
+#                 spp = (sorted_feature_values[point] + sorted_feature_values[point + 1]) / 2
+#                 for sample_index in range(sample_num):
+#                     if feature_values[sample_index] <= spp:
+#                         y_left.append(y[sample_index].tolist())
+#                     else:
+#                         y_right.append(y[sample_index].tolist())
+#                 y_left = np.array(y_left)
+#                 y_right = np.array(y_right)
+#                 if y_left.shape[0] == 0 or y_right.shape[0] == 0:
+#                     all_statistics.append(0)
+#                 else:
+#                     mlent_minus = self.get_mlent(y_left)
+#                     mlent_plus = self.get_mlent(y_right)
+#                     ig = mlent_all - (
+#                         y_left.shape[0] / sample_num * mlent_minus + y_right.shape[0] / sample_num * mlent_plus)
+#                     all_statistics.append(ig)
+#
+#         max_index = 0
+#         max_ig = 0
+#         for ig_index in range(len(all_statistics)):
+#             if all_statistics[ig_index] > max_ig:
+#                 max_ig = all_statistics[ig_index]
+#                 max_index = ig_index
+#
+#         feature_index, remainder = divmod(max_index, self.splitting_num - 1)
+#         feature_values = X.getcol(feature_index).toarray()
+#         sorted_feature_values = sorted(feature_values)
+#         split_value = (sorted_feature_values[splitting_point[remainder]] + sorted_feature_values[
+#             splitting_point[remainder] + 1]) / 2
+#
+#         tree_node.data = [feature_index, split_value]
+#         X_left = None
+#         y_left = []
+#         X_right = None
+#         y_right = []
+#         for sample_index in range(sample_num):
+#             if feature_values[sample_index] <= split_value:
+#                 X_left = vstack([X_left, X.getrow(sample_index)]) if X_left is not None else X.getrow(sample_index)
+#                 y_left.append(y[sample_index].tolist())
+#             else:
+#                 X_right = vstack([X_right, X.getrow(sample_index)]) if X_right is not None else X.getrow(sample_index)
+#                 y_right.append(y[sample_index].tolist())
+#
+#         if len(y_left) != 0:
+#             tree_node.left = TreeNode()
+#             self.fit_tree(X_left, np.array(y_left), tree_node.left)
+#         if len(y_right) != 0:
+#             tree_node.right = TreeNode()
+#             self.fit_tree(X_right, np.array(y_right), tree_node.right)
+#
+#     def get_mlent(self, y):
+#         samples, classes = y.shape
+#         pj = [np.sum(y[:, i]) / samples for i in range(classes)]
+#         sum = 0
+#         for j in range(classes):
+#             pjs = pj[j]
+#             if pjs == 0 or pjs == 1:
+#                 continue
+#
+#             sum += -pjs * math.log(pjs, 2) - (1 - pjs) * math.log((1 - pjs), 2)
+#
+#         return sum
+#
+#     def predict(self, X):
+#         predict_num, predict_features = X.shape
+#         if predict_features != self.features:
+#             exit("inconsistent feature number")
+#
+#         results = []
+#         for i in range(predict_num):
+#             feature_values = X.getrow(i).toarray()[0]
+#             treenode = self.root
+#             while isinstance(treenode.data, list):
+#                 feature_index = treenode.data[0]
+#                 feature_div_value = treenode.data[1]
+#                 if feature_values[feature_index] <= feature_div_value:
+#                     treenode = treenode.left
+#                 else:
+#                     treenode = treenode.right
+#             if not isinstance(treenode.data, int):
+#                 exit("some leafnode has not result")
+#             predicted_result_index = treenode.data
+#             results.append(self.leaf_labels[predicted_result_index])
+#         return results
