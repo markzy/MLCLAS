@@ -5,7 +5,7 @@ import numpy as np
 import pp
 from sklearn.cross_validation import KFold
 from sklearn.preprocessing import MultiLabelBinarizer
-
+from BPMLL import BPMLL
 from Models import BPMLL_models
 
 file_name = '../data/Reuters/first9_data.pkl'

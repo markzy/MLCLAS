@@ -2,14 +2,16 @@ import numpy as np
 import scipy.sparse
 from Models.RankingSVM_models import *
 from scipy.optimize import minimize
+import cvxopt as ct
 
 
-def optifun(alpha_new, g):
-    return np.inner(alpha_new, g)
-
-
-def cons(alpha_new, c_k):
-    return np.inner(alpha_new, c_k)
+# def optifun(alpha_new, g):
+#     return np.inner(alpha_new, g)
+#
+#
+# def cons(alpha_new, c_k):
+#     return np.inner(alpha_new, c_k)
+#
 
 
 def fitRSVM(X, y):
@@ -93,9 +95,15 @@ def fitRSVM(X, y):
         optimization problem 1:
         solve min<g, alpha_new> with corresponding constraints
         """
-        alpha_new = np.zeros(classInfo.totalProduct)
-        bnds = [(0, None)] * classInfo.totalProduct
-        cts = [{'type': 'eq', 'fun': cons, 'args': (np.concatenate(c[:, k]),)} for k in range(class_num)]
-        res = minimize(optifun, alpha_new, args=(g_ikl,), method='SLSQP', bounds=bnds, constraints=cts)
-        print(res)
+        # alpha_new = np.zeros(classInfo.totalProduct)
+        # bnds = [(0, None)] * classInfo.totalProduct
+        # cts = [{'type': 'eq', 'fun': cons, 'args': (np.concatenate(c[:, k]),)} for k in range(class_num)]
+        # res = minimize(optifun, alpha_new, args=(g_ikl,), method='SLSQP', bounds=bnds, constraints=cts)
+        c_lp = ct.matrix(g_ikl)
+        G_lp = ct.matrix(np.asarray([-np.ones(classInfo.totalProduct)]).T)
+        h_lp = ct.matrix(np.zeros(classInfo.totalProduct))
+        A_lp = ct.matrix([np.concatenate(c[:, k]).tolist() for k in range(class_num)])
+        b_lp = ct.matrix(np.zeros(class_num))
+        sol = ct.solvers.lp(c_lp, G_lp, h_lp, A_lp, b_lp)
+        print(sol)
         exit()
