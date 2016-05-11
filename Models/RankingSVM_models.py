@@ -5,6 +5,7 @@ import numpy as np
 class AllLabelInfo:
     def __init__(self):
         # range and sum information
+        self.eachProduct = []
         self.totalProduct = 0
         self.eachRange = []
         # label information
@@ -24,6 +25,7 @@ class AllLabelInfo:
         """
         newIndex = self.totalProduct
         product = len(label_array) * len(not_array)
+        self.eachProduct.append(product)
         self.eachRange.append((newIndex, newIndex + product))
 
         self.totalProduct += product
@@ -39,3 +41,6 @@ class AllLabelInfo:
 
     def getRangeFromIndex(self, index):
         return self.eachRange[index]
+
+    def getEachProduct(self, index):
+        return self.eachProduct[index]

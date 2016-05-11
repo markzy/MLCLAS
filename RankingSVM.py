@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.sparse
 from Models.RankingSVM_models import *
-from scipy.optimize import minimize
+from scipy.optimize import linprog
 import cvxopt as ct
 
 
@@ -14,7 +14,7 @@ import cvxopt as ct
 #
 
 
-def fitRSVM(X, y):
+def fitRSVM(X, y, C_factor):
     if isinstance(X, scipy.sparse.spmatrix):
         X_array = X.toarray()
     else:
@@ -95,15 +95,41 @@ def fitRSVM(X, y):
         optimization problem 1:
         solve min<g, alpha_new> with corresponding constraints
         """
+
+        """ trying to use scipy minimize"""
         # alpha_new = np.zeros(classInfo.totalProduct)
         # bnds = [(0, None)] * classInfo.totalProduct
         # cts = [{'type': 'eq', 'fun': cons, 'args': (np.concatenate(c[:, k]),)} for k in range(class_num)]
         # res = minimize(optifun, alpha_new, args=(g_ikl,), method='SLSQP', bounds=bnds, constraints=cts)
+
+        """ trying to ues cvxopt """
+        c_i = classInfo.eachProduct
+        bnds = []
+        for i in range(sample_num):
+            bnds += [C_factor / c_i[i] for j in range(c_i[i])]
+
         c_lp = ct.matrix(g_ikl)
-        G_lp = ct.matrix(np.asarray([-np.ones(classInfo.totalProduct)]).T)
-        h_lp = ct.matrix(np.zeros(classInfo.totalProduct))
-        A_lp = ct.matrix([np.concatenate(c[:, k]).tolist() for k in range(class_num)])
-        b_lp = ct.matrix(np.zeros(class_num))
+        G_lp = ct.matrix(np.concatenate([-np.eye(classInfo.totalProduct), np.eye(classInfo.totalProduct)]))
+        h_lp = ct.matrix(np.concatenate([np.zeros(classInfo.totalProduct), np.array(bnds)]))
+
+        A_lp = []
+        for k in range(1, class_num):
+            A_lp.append(np.concatenate(c[:, k]).tolist())
+        A_lp = ct.matrix(np.array(A_lp))
+        b_lp = ct.matrix(np.zeros(class_num - 1))
+
+        print('begin solving...')
         sol = ct.solvers.lp(c_lp, G_lp, h_lp, A_lp, b_lp)
         print(sol)
         exit()
+
+        """ trying to use scipy linprog"""
+        # A_lg = np.asarray([np.concatenate(c[:, k]).tolist() for k in range(1, class_num)])
+        # b_lg = np.zeros(class_num - 1)
+        #
+        # c_i = classInfo.eachProduct
+        # bnds = []
+        # for i in range(sample_num):
+        #     bnds += [(0, C_factor / c_i[i]) for j in range(c_i[i])]
+        #
+        # res = linprog(g_ikl,A_eq=A_lg,b_eq=b_lg,bounds=bnds)

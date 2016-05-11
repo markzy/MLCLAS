@@ -18,4 +18,5 @@ pca = PCA(n_components=(feature_size * 5) // 100)
 train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
 # test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 
-a = fitRSVM(train_data_trans, train_target)
+
+a = fitRSVM(train_data_trans, train_target,20)
