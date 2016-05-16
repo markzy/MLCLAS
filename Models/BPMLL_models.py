@@ -54,8 +54,8 @@ class ThresholdFunction:
             raise Exception("inconsistent shape of two matrix")
 
         for i in range(samples):
-            isLabelValue = [sys.float_info.max for i in range(labels)]
-            isNotLabelValue = [sys.float_info.min for i in range(labels)]
+            isLabelValue = [float('inf') for i in range(labels)]
+            isNotLabelValue = [float('-inf') for i in range(labels)]
             for j in range(labels):
                 if idealLabels[i][j] == 1:
                     isLabelValue[j] = modelOutLabels[i][j]

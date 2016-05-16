@@ -1,19 +1,41 @@
 import numpy as np
 import scipy.sparse
-from Models.RankingSVM_models import *
-from scipy.optimize import linprog
 import cvxopt as ct
 import pickle
-import sys
+from Models.RankingSVM_models import *
+from Models.BPMLL_models import ThresholdFunction
 
 
-# def optifun(alpha_new, g):
-#     return np.inner(alpha_new, g)
-#
-#
-# def cons(alpha_new, c_k):
-#     return np.inner(alpha_new, c_k)
-#
+class RankingSVM:
+    def __init__(self, w, threshold):
+        self.w = w
+        self.threshold = threshold
+
+
+def predict(self, X, w, threshold):
+    if isinstance(X, scipy.sparse.spmatrix):
+        X_array = X.toarray()
+    else:
+        X_array = np.array(X)
+    sample_num, feature_num = X.shape
+    class_num = w.shape[0]
+
+    if feature_num != w.shape[1] - 1:
+        raise Exception('inconsistent shape of training samples!')
+
+    X_extend = np.concatenate((X_array, np.array([np.ones(sample_num)]).T), axis=1)
+
+    outputs = np.dot(X_extend, w.T)
+    result = []
+    for index in range(sample_num):
+        sample_result = []
+        op = outputs[index]
+        th = threshold.computeThreshold(op)
+        for j in range(class_num):
+            if op[j] >= th:
+                sample_result.append(j)
+        result.append(sample_result)
+    return result
 
 
 def fitRSVM(X, y, C_factor):
@@ -84,6 +106,7 @@ def fitRSVM(X, y, C_factor):
 
     converge = False
     iteration_count = 0
+
     while not converge:
         iteration_count += 1
         # compute beta
@@ -111,44 +134,25 @@ def fitRSVM(X, y, C_factor):
         """
         optimization problem 1:
         solve min<g, alpha_new> with corresponding constraints
-
-        1. trying to use scipy minimize:
-        alpha_new = np.zeros(classInfo.totalProduct)
-        bnds = [(0, None)] * classInfo.totalProduct
-        cts = [{'type': 'eq', 'fun': cons, 'args': (np.concatenate(c[:, k]),)} for k in range(class_num)]
-        res = minimize(optifun, alpha_new, args=(g_ikl,), method='SLSQP', bounds=bnds, constraints=cts)
-
-        2. trying to use scipy linprog:
-        A_lg = np.asarray([np.concatenate(c[:, k]).tolist() for k in range(1, class_num)])
-        b_lg = np.zeros(class_num - 1)
-
-        c_i = classInfo.eachProduct
-        bnds = []
-        for i in range(sample_num):
-            bnds += [(0, C_factor / c_i[i]) for j in range(c_i[i])]
-
-        res = linprog(g_ikl,A_eq=A_lg,b_eq=b_lg,bounds=bnds)
-
         """
 
-        # 3. finally trying to ues cvxopt
-
+        # finally trying to ues cvxopt
         c_lp = ct.matrix(g_ikl)
         print('iteration %d...' % iteration_count)
         sol = ct.solvers.lp(c_lp, G_lp, h_lp, A_lp, b_lp)
         sol_matrix = sol['x']
 
+        # some code used for persisting middle results, for test usages
         # file_name = '/Users/Mark/PycharmProjects/multi_label_classification/results/SVM/RSVM.pkl'
         # with open(file_name, 'wb') as op:
         #     pickle.dump(sol['x'], op, pickle.HIGHEST_PROTOCOL)
-
         # exit()
         # with open(file_name, 'rb') as ip:
         #     sol_matrix = pickle.load(ip)
 
         alpha_new = np.array(sol_matrix).T[0]
 
-        # now the problem collapse into a simple qp problem
+        # now the problem collapse into a simple lp problem
         # compute beta_new
         for i in range(sample_num):
             alpha_range = classInfo.getRangeFromIndex(i)
@@ -157,14 +161,14 @@ def fitRSVM(X, y, C_factor):
             for k in range(class_num):
                 beta_new[k][i] = np.inner(c_list[k], alpha_piece)
 
-        # init coeffient of lamda
-        lamda_11 = np.sum(beta_new.T.dot(beta) * x_inner)
-        lamda_12 = np.sum(beta.T.dot(beta_new) * x_inner)
-        lamda_13 = np.sum(alpha_new)
-        # coefficient of lamda
-        lamda_1 = lamda_13 - lamda_11 / 2 - lamda_12 / 2
-        # coefficient of lamda square
-        lamda_2 = np.sum(beta_new.T.dot(beta_new) * x_inner) / (-2)
+        # init coeffient of lambda
+        lambda_11 = np.sum(beta_new.T.dot(beta) * x_inner)
+        lambda_12 = np.sum(beta.T.dot(beta_new) * x_inner)
+        lambda_13 = np.sum(alpha_new)
+        # coefficient of lambda
+        lambda_1 = lambda_13 - lambda_11 / 2 - lambda_12 / 2
+        # coefficient of lambda square
+        lambda_2 = np.sum(beta_new.T.dot(beta_new) * x_inner) / (-2)
 
         # prepare constraints
         left_vec = - alpha
@@ -176,39 +180,73 @@ def fitRSVM(X, y, C_factor):
                 left = max(left_vec[alpha_index] / alpha_new[alpha_index], left)
                 right = min(right_vec[alpha_index] / alpha_new[alpha_index], right)
 
-        optifunc = lambda x: lamda_2 * x * x + lamda_1 * x
+        optifunc = lambda x: lambda_2 * x * x + lambda_1 * x
 
-        # decide lamda's value
-        final_lamda = 0
-        if lamda_2 < 0:
-            opti_lamda = -lamda_1 / (lamda_2 * 2)
-            if opti_lamda < left:
-                final_lamda = left
-            elif opti_lamda > right:
-                final_lamda = right
+        # decide lambda's value
+        final_lambda = 0
+        if lambda_2 < 0:
+            opti_lambda = -lambda_1 / (lambda_2 * 2)
+            if opti_lambda < left:
+                final_lambda = left
+            elif opti_lambda > right:
+                final_lambda = right
             else:
-                final_lamda = opti_lamda
-        elif lamda_2 == 0:
-            if lamda_1 >= 0:
-                final_lamda = right
+                final_lambda = opti_lambda
+        elif lambda_2 == 0:
+            if lambda_1 >= 0:
+                final_lambda = right
             else:
-                final_lamda = left
+                final_lambda = left
         else:
-            worst_lamda = -lamda_1 / (lamda_2 * 2)
-            if worst_lamda < left:
-                final_lamda = right
-            elif worst_lamda > right:
-                final_lamda = left
+            worst_lambda = -lambda_1 / (lambda_2 * 2)
+            if worst_lambda < left:
+                final_lambda = right
+            elif worst_lambda > right:
+                final_lambda = left
             else:
-                final_lamda = left if optifunc(left) >= optifunc(right) else right
+                final_lambda = left if optifunc(left) >= optifunc(right) else right
 
-        print("final lamda: " + final_lamda)
-        print("optifunc: " + optifunc(final_lamda))
+        print("final lambda: " + str(final_lambda))
+        print("optifunc: " + str(optifunc(final_lambda)))
 
         # converge condition
-        if optifunc(final_lamda) <= 1 or final_lamda <= 1e-3:
+        if optifunc(final_lambda) <= 1 or final_lambda <= 1e-3:
             converge = True
+        else:
+            alpha += final_lambda * alpha_new
 
-        alpha += final_lamda * alpha_new
+    with open('results/SVM/alpha.pkl', 'wb') as _input:
+        pickle.dump(alpha, _input, pickle.HIGHEST_PROTOCOL)
+        print('successfully preserved final alpha')
 
-    return alpha
+    # compute w&b via KKT conditions
+    w = [0 for i in range(class_num)]
+    for k in range(class_num):
+        beta_vec = np.asarray([beta[k]])
+        w[k] = beta_vec.dot(X_array)[0]
+
+    w = np.array(w)
+    b = np.zeros(class_num)
+
+    # use x[0] to compute differences of b
+    x_list = X_array[0]
+    shape, labels, notLabels = classInfo.getShape(0, True)
+
+    # make the first label's b=0, it won't affect the fianl ranking
+    for l in notLabels:
+        b[l] = np.inner(w[labels[0]] - w[l], x_list) - 1
+
+    # then use b[falselabels[0]] to compute b[actuallabels[1:]]
+    falselabelb = b[notLabels[0]]
+    falselabelIndex = notLabels[0]
+    for labelIndex in range(1, len(labels)):
+        b[labels[labelIndex]] = 1 + falselabelb - np.inner(w[labels[labelIndex]] - w[falselabelIndex], x_list)
+
+    # build threshold for labeling
+    X_extend = np.concatenate((X_array, np.array([np.ones(sample_num)]).T), axis=1)
+    w_extend = np.concatenate((w, np.array([b]).T), axis=1)
+    model_outputs = np.dot(X_extend, w_extend.T)
+    threshold_function = ThresholdFunction(model_outputs, y)
+    result = RankingSVM(w_extend, threshold_function)
+
+    return result
