@@ -2,8 +2,8 @@ import numpy as np
 import scipy.sparse
 import cvxopt as ct
 import pickle
-from Models.RankingSVM_models import *
-from Models.BPMLL_models import ThresholdFunction
+from mlclas.svm.rankingsvm_models import *
+from mlclas.neural.bpmll_models import ThresholdFunction
 import operator
 
 
@@ -12,38 +12,40 @@ class RankingSVM:
         self.w = w
         self.threshold = threshold
 
+    # def fit(self):
 
-def predict(X, w, threshold):
-    if isinstance(X, scipy.sparse.spmatrix):
-        X_array = X.toarray()
-    else:
-        X_array = np.array(X)
-    sample_num, feature_num = X.shape
-    class_num = w.shape[0]
+    def predict(self, X):
+        if isinstance(X, scipy.sparse.spmatrix):
+            X_array = X.toarray()
+        else:
+            X_array = np.array(X)
+        sample_num, feature_num = X.shape
+        class_num = self.w.shape[0]
 
-    if feature_num != w.shape[1] - 1:
-        raise Exception('inconsistent shape of training samples!')
+        if feature_num != self.w.shape[1] - 1:
+            raise Exception('inconsistent shape of training samples!')
 
-    X_extend = np.concatenate((X_array, np.array([np.ones(sample_num)]).T), axis=1)
+        X_extend = np.concatenate((X_array, np.array([np.ones(sample_num)]).T), axis=1)
 
-    outputs = np.dot(X_extend, w.T)
-    result = []
-    for index in range(sample_num):
-        sample_result = []
-        op = outputs[index]
-        th = threshold.computeThreshold(op)
-        count = 0
-        for j in range(class_num):
-            if op[j] >= th:
-                count += 1
-                sample_result.append(j)
-        if count == 0:
-            op_index, op_value = max(enumerate(op), key=operator.itemgetter(1))
+        threshold = self.threshold
+        outputs = np.dot(X_extend, self.w.T)
+        result = []
+        for index in range(sample_num):
+            sample_result = []
+            op = outputs[index]
+            th = threshold.compute_threshold(op)
+            count = 0
             for j in range(class_num):
-                if op[j] == op_value:
+                if op[j] >= th:
+                    count += 1
                     sample_result.append(j)
-        result.append(sample_result)
-    return result
+            if count == 0:
+                op_index, op_value = max(enumerate(op), key=operator.itemgetter(1))
+                for j in range(class_num):
+                    if op[j] == op_value:
+                        sample_result.append(j)
+            result.append(sample_result)
+        return result
 
 
 def fitRSVM(X, y, C_factor):
@@ -77,7 +79,7 @@ def fitRSVM(X, y, C_factor):
     # initialize c
     c = [[0 for k in range(class_num)] for i in range(sample_num)]
     for i in range(sample_num):
-        sample_shape, labels, notLabels = classInfo.getShape(i, True)
+        sample_shape, labels, notLabels = classInfo.get_shape(i, True)
         for k in range(class_num):
             matrix = np.zeros(sample_shape)
             if k in labels:
@@ -119,7 +121,7 @@ def fitRSVM(X, y, C_factor):
         iteration_count += 1
         # compute beta
         for i in range(sample_num):
-            alpha_range = classInfo.getRangeFromIndex(i)
+            alpha_range = classInfo.get_range(i)
             alpha_piece = alpha[alpha_range[0]:alpha_range[1]]
             c_list = c[i]
             for k in range(class_num):
@@ -134,8 +136,8 @@ def fitRSVM(X, y, C_factor):
 
         # compute g_ikl
         for i in range(sample_num):
-            g_range = classInfo.getRangeFromIndex(i)
-            shape, labels, notLabels = classInfo.getShape(i, True)
+            g_range = classInfo.get_range(i)
+            shape, labels, notLabels = classInfo.get_shape(i, True)
             wx_list = wx_inner[:, i]
             g_ikl[g_range[0]:g_range[1]] = np.repeat(wx_list[labels], shape[1]) - np.tile(wx_list[notLabels], shape[0]) - 1
 
@@ -163,7 +165,7 @@ def fitRSVM(X, y, C_factor):
         # now the problem collapse into a simple lp problem
         # compute beta_new
         for i in range(sample_num):
-            alpha_range = classInfo.getRangeFromIndex(i)
+            alpha_range = classInfo.get_range(i)
             alpha_piece = alpha_new[alpha_range[0]:alpha_range[1]]
             c_list = c[i]
             for k in range(class_num):
@@ -238,7 +240,7 @@ def fitRSVM(X, y, C_factor):
 
     # use x[0] to compute differences of b
     x_list = X_array[0]
-    shape, labels, notLabels = classInfo.getShape(0, True)
+    shape, labels, notLabels = classInfo.get_shape(0, True)
 
     # make the first label's b=0, it won't affect the fianl ranking
     for l in notLabels:

@@ -1,7 +1,5 @@
 import copy
 import numpy as np
-import random
-import math
 import operator
 
 
@@ -40,44 +38,44 @@ class TrainPair:
 
 
 class ThresholdFunction:
-    def __init__(self, modelOutLabels, idealLabels):
+    def __init__(self, model_outlabels, ideal_labels):
         self.parameters = []
-        self.build(modelOutLabels, idealLabels)
+        self.build(model_outlabels, ideal_labels)
 
-    def build(self, modelOutLabels, idealLabels):
-        samples = len(idealLabels)
-        labels = len(idealLabels[0])
+    def build(self, model_outlabels, ideal_labels):
+        samples = len(ideal_labels)
+        labels = len(ideal_labels[0])
         threshholds = [0 for i in range(samples)]
 
-        if len(modelOutLabels) != samples or len(modelOutLabels[0]) != labels:
+        if len(model_outlabels) != samples or len(model_outlabels[0]) != labels:
             raise Exception("inconsistent shape of two matrix")
 
         for i in range(samples):
-            isLabelValue = [float('inf') for i in range(labels)]
-            isNotLabelValue = [float('-inf') for i in range(labels)]
+            label_value = [float('inf') for i in range(labels)]
+            notlabel_value = [float('-inf') for i in range(labels)]
             for j in range(labels):
-                if idealLabels[i][j] == 1:
-                    isLabelValue[j] = modelOutLabels[i][j]
+                if ideal_labels[i][j] == 1:
+                    label_value[j] = model_outlabels[i][j]
                 else:
-                    isNotLabelValue[j] = modelOutLabels[i][j]
+                    notlabel_value[j] = model_outlabels[i][j]
 
-            isLabelMin = min(isLabelValue)
-            isNotLabelMax = max(isNotLabelValue)
+            label_min = min(label_value)
+            notlabel_max = max(notlabel_value)
 
-            if isLabelMin != isNotLabelMax:
-                if isLabelMin == float('inf'):
-                    threshholds[i] = isNotLabelMax + 0.1
-                elif isNotLabelMax == float('-inf'):
-                    threshholds[i] = isLabelMin - 0.1
+            if label_min != notlabel_max:
+                if label_min == float('inf'):
+                    threshholds[i] = notlabel_max + 0.1
+                elif notlabel_max == float('-inf'):
+                    threshholds[i] = label_min - 0.1
                 else:
-                    threshholds[i] = (isLabelMin + isNotLabelMax) / 2
+                    threshholds[i] = (label_min + notlabel_max) / 2
             else:
-                threshholds[i] = isLabelMin
+                threshholds[i] = label_min
 
-        modelOutLabels = np.concatenate((modelOutLabels, np.array([np.ones(samples)]).T), axis=1)
-        self.parameters = np.linalg.lstsq(modelOutLabels, threshholds)[0]
+        model_outlabels = np.concatenate((model_outlabels, np.array([np.ones(samples)]).T), axis=1)
+        self.parameters = np.linalg.lstsq(model_outlabels, threshholds)[0]
 
-    def computeThreshold(self, outputs):
+    def compute_threshold(self, outputs):
         parameter_length = len(self.parameters)
         b_index = parameter_length - 1
 
@@ -99,9 +97,9 @@ class BPMLLResults:
         self.outputs = []
         self.final_global_error = global_error
 
-    def add(self, predictSet, topLabel, output):
-        self.predictedLabels.append(predictSet)
-        self.topRankedLabels.append(topLabel)
+    def add(self, predict_set, top_label, output):
+        self.predictedLabels.append(predict_set)
+        self.topRankedLabels.append(top_label)
         self.outputs.append(output)
 
 
@@ -121,7 +119,7 @@ class EvaluationMetrics:
 
         self.expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
 
-        self.predictedLabels = result.predictedLabels
+        self.predictedLabels = result.predicted_labels
         self.topRankedLabels = result.topRankedLabels
         self.outputs = result.outputs
         self.possibleLabelNum = len(self.outputs[0])
@@ -167,8 +165,8 @@ class EvaluationMetrics:
         rloss_sum = 0
         ap_sum = 0
         for sample_index in range(self.sampleNum):
-            unoderedPart = []
-            expectedNum = len(self.expectedLabels[sample_index])
+            unodered_part = []
+            expected_num = len(self.expectedLabels[sample_index])
 
             sample_output = self.outputs[sample_index]
             output_dic = {}
@@ -180,30 +178,30 @@ class EvaluationMetrics:
             temp_count = 0
             times = 0
             for sorted_tuples in sorted_output:
-                if times == expectedNum:
+                if times == expected_num:
                     break
 
                 if sorted_tuples[0] not in self.expectedLabels[sample_index]:
                     temp_count += 1
                 else:
-                    unoderedPart.append(temp_count)
+                    unodered_part.append(temp_count)
                     temp_count = 0
                     times += 1
 
-            if len(unoderedPart) != expectedNum:
+            if len(unodered_part) != expected_num:
                 raise Exception("function error for RankingLoss")
 
             pairs_num = 0
             fraction_sum = 0
             fraction_divide = 0
-            for cal_index in range(expectedNum):
-                pairs_num += unoderedPart[cal_index] * (expectedNum - cal_index)
+            for cal_index in range(expected_num):
+                pairs_num += unodered_part[cal_index] * (expected_num - cal_index)
                 # prepare for calculating average precision
-                fraction_divide += unoderedPart[cal_index] + 1
+                fraction_divide += unodered_part[cal_index] + 1
                 fraction_sum += (cal_index + 1) / fraction_divide
 
-            rloss_sum += pairs_num / (expectedNum * (self.possibleLabelNum - expectedNum))
-            ap_sum += fraction_sum / expectedNum
+            rloss_sum += pairs_num / (expected_num * (self.possibleLabelNum - expected_num))
+            ap_sum += fraction_sum / expected_num
 
         self.ap = ap_sum / self.sampleNum
         self.ap_prepared = True

@@ -1,10 +1,10 @@
-from Utils.Stats import Aggregate
+from mlclas.utils.stats import Aggregate
 
 
 class UniversalMetrics:
-    def __init__(self, classNum, expected, result):
+    def __init__(self, class_num, expected, result):
         self.sampleNum = len(expected)
-        self.classNum = classNum
+        self.classNum = class_num
         self.expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
         self.predictedLabels = result
 

@@ -1,18 +1,17 @@
 import pickle
 import time
-
 import numpy as np
 import pp
 from sklearn.cross_validation import KFold
 from sklearn.preprocessing import MultiLabelBinarizer
-from BPMLL import BPMLL
-from Models import BPMLL_models
+from mlclas.neural.bpmll import BPMLL
+from mlclas.neural import bpmll_models
 
-file_name = '../data/Reuters/first9_data.pkl'
+file_name = '../../data/Reuters/first9_data.pkl'
 with open(file_name, 'rb') as input_:
     data = pickle.load(input_)
 
-file_name = '../data/Reuters/first9_target.pkl'
+file_name = '../../data/Reuters/first9_target.pkl'
 with open(file_name, 'rb') as input_:
     target = pickle.load(input_)
 
@@ -32,9 +31,10 @@ job_server = pp.Server()
 jobs = []
 expected = []
 
+# TODO: multi-core support might still have problems
 start = time.time()
 for train, test in kf:
-    jobs.append(job_server.submit(train_fuc, args=(data[train], target_bi[train], data[test]), modules=('Models',)))
+    jobs.append(job_server.submit(train_fuc, args=(data[train], target_bi[train], data[test]), modules=('mlclas.neural.bpmll',)))
     expected.append(target[test])
 
 result = [jobs[0](), jobs[1](), jobs[2]()]
@@ -60,8 +60,8 @@ print('result has been serialized to local file')
 # with open(file_name, 'rb') as input_:
 #     expected = pickle.load(input_)
 
-ems = [BPMLL_models.EvaluationMetrics(expected[0], result[0]), BPMLL_models.EvaluationMetrics(expected[1], result[1]),
-       BPMLL_models.EvaluationMetrics(expected[2], result[2])]
+ems = [bpmll_models.EvaluationMetrics(expected[0], result[0]), bpmll_models.EvaluationMetrics(expected[1], result[1]),
+       bpmll_models.EvaluationMetrics(expected[2], result[2])]
 hl, oe, cv, rl, ap = 0, 0, 0, 0, 0
 for i in range(3):
     hl += ems[i].hamming_loss() / 3

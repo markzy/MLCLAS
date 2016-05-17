@@ -1,6 +1,3 @@
-import numpy as np
-
-
 # models designed for RankingSVM
 class AllLabelInfo:
     def __init__(self):
@@ -23,24 +20,21 @@ class AllLabelInfo:
         """ update range information
             while this range information corresponds to Python customs, i.e. range(a,b) means [a,b) in math
         """
-        newIndex = self.totalProduct
+        new_index = self.totalProduct
         product = len(label_array) * len(not_array)
         self.eachProduct.append(product)
-        self.eachRange.append((newIndex, newIndex + product))
+        self.eachRange.append((new_index, new_index + product))
 
         self.totalProduct += product
 
-    def getShape(self, index, elaborate=False):
+    def get_shape(self, index, elaborate=False):
         if elaborate is False:
             return self.labelsNum[index], self.notLabelsNum[index]
         else:
             return (self.labelsNum[index], self.notLabelsNum[index]), self.labels[index], self.notLabels[index]
 
-    def ravel_multiple_index(self):
-        pass
-
-    def getRangeFromIndex(self, index):
+    def get_range(self, index):
         return self.eachRange[index]
 
-    def getEachProduct(self, index):
+    def get_each_product(self, index):
         return self.eachProduct[index]

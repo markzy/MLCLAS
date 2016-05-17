@@ -3,10 +3,10 @@ from scipy.sparse import csr_matrix
 from sklearn import datasets
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MultiLabelBinarizer
-from Models import BPMLL_models
-from BPMLL import BPMLL
+from mlclas.neural.bpmll import BPMLL
+from mlclas.neural import bpmll_models
 
-files = ['../data/scene_train', '../data/scene_test']
+files = ['../../data/scene_train', '../../data/scene_test']
 
 data = datasets.load_svmlight_files(files, multilabel=True)
 train_data = data[0]
@@ -22,7 +22,7 @@ test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 e = BPMLL(print_procedure=True, epoch=40).fit(train_data_trans, train_target)
 res = e.predict(test_data_trans)
 
-em = BPMLL_models.EvaluationMetrics(data[3], res)
+em = bpmll_models.EvaluationMetrics(data[3], res)
 print(em.predictedLabels)
 print('----------')
 print(data[3])

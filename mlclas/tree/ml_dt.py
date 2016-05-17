@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.sparse
-from Models import DecisionTree_models as DTModels
+import mlclas.tree.dt_models as dtm
 
 
 # to-do: stop criterion can be refined
@@ -8,17 +8,17 @@ class MLDecisionTree:
     def __init__(self):
         self.features = 0
         self.classes = 0
-        self.root = DTModels.TreeNode()
+        self.root = dtm.TreeNode()
         self.stop_criterion = 0
         self.learned = False
-        self.minNum = 2
+        self.min_num = 2
         self.useStandardError = True
 
-    def fit(self, X, y, minNum=5):
-        instances = DTModels.MLInstaces(X, y)
+    def fit(self, X, y, min_num=5):
+        instances = dtm.MLInstaces(X, y)
         self.features = instances.features
         self.classes = instances.classes
-        self.minNum = minNum
+        self.min_num = min_num
 
         self.fit_tree(instances, self.root)
         self.root.prune()
@@ -27,18 +27,18 @@ class MLDecisionTree:
 
     # to-do: construct leaf node;check how to avoid less than 2
     def fit_tree(self, data, treenode):
-        if data.samples <= 2 * self.minNum or data.pure is True:
+        if data.samples <= 2 * self.min_num or data.pure is True:
             treenode.leaf(data)
             return
 
-        select_model = DTModels.ModelSelection(useMDL=True, minNum=self.minNum)
+        select_model = dtm.ModelSelection(use_mdl=True, min_num=self.min_num)
         attr, value = select_model.select(data)
         left_data, right_data, distribution = data.split(attr, value)
 
         treenode.distribution = distribution
-        treenode.splitInfo = [attr, value]
-        treenode.left = DTModels.TreeNode()
-        treenode.right = DTModels.TreeNode()
+        treenode.split_info = [attr, value]
+        treenode.left = dtm.TreeNode()
+        treenode.right = dtm.TreeNode()
 
         # split data
         self.fit_tree(left_data, treenode.left)
@@ -61,12 +61,12 @@ class MLDecisionTree:
         for index in range(samples):
             values = X_array[index]
             treenode = self.root
-            while not treenode.isLeaf:
-                attrIndex, splitValue = treenode.splitInfo
-                if values[attrIndex] <= splitValue:
+            while not treenode.is_leaf:
+                attr_index, split_value = treenode.split_info
+                if values[attr_index] <= split_value:
                     treenode = treenode.left
                 else:
                     treenode = treenode.right
-            results.append(treenode.getPrediectedLabels())
+            results.append(treenode.get_prediected_labels())
 
         return results

@@ -3,8 +3,7 @@ import random
 import numpy as np
 import scipy
 from scipy.sparse import vstack
-
-from Models import BPMLL_models
+from . import bpmll_models
 
 
 # Backpropagation for Multi-Label Learning
@@ -69,12 +68,12 @@ class BPMLL:
         dataset = []
 
         if self.normalize is True:
-            X_array = BPMLL_models.Nomalizer(X_array, -1, 1).normalize()
+            X_array = bpmll_models.Nomalizer(X_array, -1, 1).normalize()
 
         for i in range(self.samples):
             # skip samples whose Yi or n-Yi is an empty set
             if np.sum(y) != 0 and np.sum(y) != self.classes:
-                dataset.append(BPMLL_models.TrainPair(X_array[i], y[i]))
+                dataset.append(bpmll_models.TrainPair(X_array[i], y[i]))
 
         return dataset
 
@@ -105,10 +104,10 @@ class BPMLL:
         x_vec = np.array([x]).T
         y = self.dataset[index].labels
 
-        isLabel = self.dataset[index].isLabel
-        notLabel = self.dataset[index].notLabel
-        isLabel_length = len(isLabel)
-        notLabel_length = len(notLabel)
+        is_label = self.dataset[index].isLabel
+        not_label = self.dataset[index].notLabel
+        is_label_length = len(is_label)
+        not_label_length = len(not_label)
 
         b, c = self.forward_propagation(x)
 
@@ -117,14 +116,14 @@ class BPMLL:
         for j in range(self.classes):
             tmp = 0
             if y[j] == 1:
-                for l in notLabel:
+                for l in not_label:
                     tmp += exp_func(-(c[0, j] - c[0, l]))
             else:
-                for k in isLabel:
+                for k in is_label:
                     tmp -= exp_func(-(c[0, k] - c[0, j]))
             dj_sigma[0, j] = tmp
 
-        d = (1 / (isLabel_length * notLabel_length)) * dj_sigma * (1 - np.square(c))
+        d = (1 / (is_label_length * not_label_length)) * dj_sigma * (1 - np.square(c))
 
         # compute e matrix
         b_vec = b.T
@@ -145,7 +144,7 @@ class BPMLL:
     def forward_propagation(self, x):
         x = np.array([x])
 
-        ac_func = BPMLL_models.ActivationFunction.activate
+        ac_func = bpmll_models.ActivationFunction.activate
         netb = np.dot(x, self.vhs_matrix) + self.bias_a
         b = ac_func(netb)
 
@@ -159,8 +158,6 @@ class BPMLL:
 
         weights_square_sum = np.sum(np.square(self.wsj_matrix)) + np.sum(
                 np.square(self.vhs_matrix)) + np.sum(np.square(self.bias_b)) + np.sum(np.square(self.bias_a))
-
-        exp_func = math.exp
 
         for i in range(self.samples):
             c = self.forward_propagation(self.dataset[i].attributes)[1]
@@ -177,14 +174,14 @@ class BPMLL:
         return global_error
 
     def build_threshhold(self):
-        modelOutputs = []
-        idealLabels = []
+        model_outputs = []
+        ideal_labels = []
         for i in range(self.samples):
             c = self.forward_propagation(self.dataset[i].attributes)[1][0]
-            modelOutputs.append(c)
-            idealLabels.append(self.dataset[i].labels)
+            model_outputs.append(c)
+            ideal_labels.append(self.dataset[i].labels)
 
-        self.threshold = BPMLL_models.ThresholdFunction(modelOutputs, idealLabels)
+        self.threshold = bpmll_models.ThresholdFunction(model_outputs, ideal_labels)
 
     def predict(self, X):
         samples, features = X.shape
@@ -197,21 +194,21 @@ class BPMLL:
             X_array = np.array(X)
 
         if self.normalize is True:
-            X_array = BPMLL_models.Nomalizer(X_array, -1, 1).normalize()
+            X_array = bpmll_models.Nomalizer(X_array, -1, 1).normalize()
 
-        result = BPMLL_models.BPMLLResults(self.final_error)
+        result = bpmll_models.BPMLLResults(self.final_error)
         for i in range(samples):
             sample_result = []
-            topLabel = None
+            top_label = None
             c = self.forward_propagation(X_array[i])[1][0]
             max_value = 0
-            threshold = self.threshold.computeThreshold(c)
+            threshold = self.threshold.compute_threshold(c)
             for j in range(self.classes):
                 if c[j] >= threshold:
                     sample_result.append(j)
                 if c[j] > max_value:
-                    topLabel = j
+                    top_label = j
                     max_value = c[j]
-            result.add(sample_result, topLabel, c)
+            result.add(sample_result, top_label, c)
 
         return result
