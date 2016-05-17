@@ -1,6 +1,5 @@
 import copy
 import numpy as np
-import sys
 import random
 import math
 import operator
@@ -66,9 +65,9 @@ class ThresholdFunction:
             isNotLabelMax = max(isNotLabelValue)
 
             if isLabelMin != isNotLabelMax:
-                if isLabelMin == sys.float_info.max:
+                if isLabelMin == float('inf'):
                     threshholds[i] = isNotLabelMax + 0.1
-                elif isNotLabelMax == sys.float_info.min:
+                elif isNotLabelMax == float('-inf'):
                     threshholds[i] = isLabelMin - 0.1
                 else:
                     threshholds[i] = (isLabelMin + isNotLabelMax) / 2

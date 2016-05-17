@@ -1,5 +1,4 @@
 from Utils.Stats import Aggregate
-import pickle
 
 
 class UniversalMetrics:

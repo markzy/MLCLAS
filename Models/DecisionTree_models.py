@@ -2,7 +2,6 @@ import numpy as np
 import math
 import scipy.sparse
 import operator
-import sys
 
 
 # Definition of a simple tree node
@@ -180,7 +179,7 @@ class ModelSelection:
     def select(self, instances):
         bestAttr = 0
         bestSplitValue = 0
-        currentInfo = sys.float_info.max
+        currentInfo = float('inf')
         for i in range(instances.features):
             model = C45Split(i, self.useMDL, self.minNum)
             result = model.build(instances)

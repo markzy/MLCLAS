@@ -4,6 +4,7 @@ import cvxopt as ct
 import pickle
 from Models.RankingSVM_models import *
 from Models.BPMLL_models import ThresholdFunction
+import operator
 
 
 class RankingSVM:
@@ -12,7 +13,7 @@ class RankingSVM:
         self.threshold = threshold
 
 
-def predict(self, X, w, threshold):
+def predict(X, w, threshold):
     if isinstance(X, scipy.sparse.spmatrix):
         X_array = X.toarray()
     else:
@@ -31,9 +32,16 @@ def predict(self, X, w, threshold):
         sample_result = []
         op = outputs[index]
         th = threshold.computeThreshold(op)
+        count = 0
         for j in range(class_num):
             if op[j] >= th:
+                count += 1
                 sample_result.append(j)
+        if count == 0:
+            op_index, op_value = max(enumerate(op), key=operator.itemgetter(1))
+            for j in range(class_num):
+                if op[j] == op_value:
+                    sample_result.append(j)
         result.append(sample_result)
     return result
 
