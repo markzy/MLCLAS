@@ -22,7 +22,7 @@ test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 e = BPMLL(print_procedure=True, epoch=40).fit(train_data_trans, train_target)
 res = e.predict(test_data_trans)
 
-em = bpmll_models.EvaluationMetrics(data[3], res)
+em = bpmll_models.BPMLLMetrics(data[3], res)
 print(em.predictedLabels)
 print('----------')
 print(data[3])

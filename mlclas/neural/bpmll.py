@@ -3,7 +3,7 @@ import random
 import numpy as np
 import scipy
 from scipy.sparse import vstack
-from . import bpmll_models
+from mlclas.neural import bpmll_models
 
 
 # Backpropagation for Multi-Label Learning

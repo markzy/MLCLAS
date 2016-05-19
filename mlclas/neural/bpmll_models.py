@@ -113,13 +113,13 @@ class ActivationFunction:
         return 1 - np.square(ActivationFunction.activate(_input))
 
 
-class EvaluationMetrics:
+class BPMLLMetrics:
     def __init__(self, expected, result):
         self.sampleNum = len(expected)
 
         self.expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
 
-        self.predictedLabels = result.predicted_labels
+        self.predictedLabels = result.predictedLabels
         self.topRankedLabels = result.topRankedLabels
         self.outputs = result.outputs
         self.possibleLabelNum = len(self.outputs[0])

@@ -60,8 +60,8 @@ print('result has been serialized to local file')
 # with open(file_name, 'rb') as input_:
 #     expected = pickle.load(input_)
 
-ems = [bpmll_models.EvaluationMetrics(expected[0], result[0]), bpmll_models.EvaluationMetrics(expected[1], result[1]),
-       bpmll_models.EvaluationMetrics(expected[2], result[2])]
+ems = [bpmll_models.BPMLLMetrics(expected[0], result[0]), bpmll_models.BPMLLMetrics(expected[1], result[1]),
+       bpmll_models.BPMLLMetrics(expected[2], result[2])]
 hl, oe, cv, rl, ap = 0, 0, 0, 0, 0
 for i in range(3):
     hl += ems[i].hamming_loss() / 3
