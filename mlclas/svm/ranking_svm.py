@@ -2,23 +2,32 @@ import numpy as np
 import scipy.sparse
 import cvxopt as ct
 import pickle
+import operator
 from mlclas.svm.rankingsvm_models import *
 from mlclas.neural.bpmll_models import ThresholdFunction
-import operator
+from mlclas.utils import check_feature_input, check_target_input
 
 
 class RankingSVM:
+    """
+    RankingSVM algorithm based on:
+    >   Elisseeff, André, and Jason Weston.
+        "Kernel methods for Multi-labelled classification and Categorical regression problems"
+        Advances in neural information processing systems. 2001.
+
+    Init Parameters
+    ----------
+    print_procedure:
+    decide whether print the middle status of the training process to the std output
+    """
     def __init__(self, print_procedure=False):
         self.w = None
         self.threshold = None
         self.print_procedure = print_procedure
 
     def fit(self, x, y, c_factor):
-        if isinstance(x, scipy.sparse.spmatrix):
-            x_array = x.toarray()
-        else:
-            x_array = np.array(x)
-        y = np.array(y)
+        x = check_feature_input(x)
+        y = check_target_input(y)
 
         ct.solvers.options['show_progress'] = self.print_procedure
 
@@ -40,10 +49,17 @@ class RankingSVM:
                     not_labels.append(label_index)
             class_info.append(labels, not_labels)
 
-        # initialize alpha
+        """
+        Alpha ought to have 3-dimensions. For convenience, it is flattened into a list.
+        It's length is sum(yi*nyi) for i in range(samle_num)
+        """
         alpha = np.zeros(class_info.totalProduct)
 
-        # initialize c
+        """
+        C has 4 dimensions, which is hard to present.
+        In this program it has 2 dimensions, which is i(sample index) and k(class index).
+        Each c[i][k] contains a yi*nyi array, which is initialized according to the original paper.
+        """
         c = [[0 for k in range(class_num)] for i in range(sample_num)]
         for i in range(sample_num):
             sample_shape, labels, not_labels = class_info.get_shape(i, True)
@@ -63,7 +79,7 @@ class RankingSVM:
         wx_inner = np.zeros((class_num, sample_num))
 
         # TODO: this can cut half of the running time
-        x_inner = np.array([[np.inner(x_array[i], x_array[j]) for j in range(sample_num)] for i in range(sample_num)])
+        x_inner = np.array([[np.inner(x[i], x[j]) for j in range(sample_num)] for i in range(sample_num)])
         g_ikl = np.zeros(class_info.totalProduct)
 
         """ prepare for the first linear programming """
@@ -129,6 +145,8 @@ class RankingSVM:
             maximize    -h'*z - b'*y
             subject to  G'*z + A'*y + c = 0
                         z >= 0.
+
+            cvxopt.solvers.lp(c, G, h[, A, b[, solver[, primalstart[, dualstart]]]])
             """
 
             sol = ct.solvers.lp(c_lp, G_lp, h_lp, A_lp, b_lp)
@@ -144,7 +162,7 @@ class RankingSVM:
 
             alpha_new = np.array(sol_matrix).T[0]
 
-            """ now the problem collapse into a simple lp problem """
+            """ now the problem collapse into a really simple qp problem """
             # compute beta_new
             for i in range(sample_num):
                 alpha_range = class_info.get_range(i)
@@ -153,6 +171,22 @@ class RankingSVM:
                 for k in range(class_num):
                     beta_new[k][i] = np.inner(c_list[k], alpha_piece)
 
+            """
+            We need to find lambda which will make W(alpha + lambda*alpha_new) be maximum
+            and alpha + lambda*alpha_new satisfies the previous constraints.
+
+            After calculating the formula, it is now:
+            new_W = old_W + [sum formula of beta_new and beta] + [sum formula of beta and beta_new]
+            + [sum formula of beta_new and beta_new] + [sum of the new alpha]
+
+            old_W is fixed and has no effect on the choice of the lambda during the maximum process.
+            Then we can calculate the coeffient of lambda. The final problem will look like:
+
+            maximize    a*lambda_square + b*lambda
+                        c <= lambda <= d
+
+            It is apparently easy to solve.
+            """
             # init coeffient of lambda
             lambda_11 = np.sum(beta_new.T.dot(beta) * x_inner)
             lambda_12 = np.sum(beta.T.dot(beta_new) * x_inner)
@@ -172,7 +206,7 @@ class RankingSVM:
                     left = max(left_vec[alpha_index] / alpha_new[alpha_index], left)
                     right = min(right_vec[alpha_index] / alpha_new[alpha_index], right)
 
-            optifunc = lambda x: lambda_2 * x * x + lambda_1 * x
+            optifunc = lambda z: lambda_2 * z * z + lambda_1 * z
 
             # decide lambda's value
             if lambda_2 < 0:
@@ -212,19 +246,25 @@ class RankingSVM:
         #     pickle.dump(alpha, _input, pickle.HIGHEST_PROTOCOL)
         #     print('successfully preserved final alpha')
 
-        """ compute w&b via KKT conditions """
+        """ compute w and b via KKT conditions """
         w = [0 for i in range(class_num)]
         for k in range(class_num):
             beta_vec = np.asarray([beta[k]])
-            w[k] = beta_vec.dot(x_array)[0]
+            w[k] = beta_vec.dot(x)[0]
 
         w = np.array(w)
         b = np.zeros(class_num)
 
         # use x[0] to compute differences of b
-        x_list = x_array[0]
+        x_list = x[0]
         shape, labels, not_labels = class_info.get_shape(0, True)
 
+        """
+        We know that once the differences between each element and the first element is known
+        we can get all the values of the list.
+        As the classification system is based on ranking, we can make any element 0 as a start of calculation,
+        which will not affect the final ranking.
+        """
         # make the first label's b=0, it won't affect the fianl ranking
         for l in not_labels:
             b[l] = np.inner(w[labels[0]] - w[l], x_list) - 1
@@ -236,7 +276,7 @@ class RankingSVM:
             b[labels[labelIndex]] = 1 + falselabelb - np.inner(w[labels[labelIndex]] - w[falselabel_index], x_list)
 
         # build threshold for labeling
-        x_extend = np.concatenate((x_array, np.array([np.ones(sample_num)]).T), axis=1)
+        x_extend = np.concatenate((x, np.array([np.ones(sample_num)]).T), axis=1)
         w_extend = np.concatenate((w, np.array([b]).T), axis=1)
         model_outputs = np.dot(x_extend, w_extend.T)
         self.threshold = ThresholdFunction(model_outputs, y)
@@ -245,17 +285,14 @@ class RankingSVM:
         return self
 
     def predict(self, x):
-        if isinstance(x, scipy.sparse.spmatrix):
-            x_array = x.toarray()
-        else:
-            x_array = np.array(x)
+        x = check_feature_input(x)
         sample_num, feature_num = x.shape
         class_num = self.w.shape[0]
 
         if feature_num != self.w.shape[1] - 1:
             raise Exception('inconsistent shape of training samples!')
 
-        x_extend = np.concatenate((x_array, np.array([np.ones(sample_num)]).T), axis=1)
+        x_extend = np.concatenate((x, np.array([np.ones(sample_num)]).T), axis=1)
 
         threshold = self.threshold
         outputs = np.dot(x_extend, self.w.T)

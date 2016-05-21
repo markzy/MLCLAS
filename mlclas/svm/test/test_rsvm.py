@@ -8,7 +8,7 @@ import pickle as pk
 from mlclas.utils.metrics import UniversalMetrics
 from mlclas.svm.ranking_svm import RankingSVM
 
-files = ['./data/scene_train', './data/scene_test']
+files = ['../../data/scene_train', '../../data/scene_test']
 
 data = datasets.load_svmlight_files(files, multilabel=True)
 train_data = data[0]
@@ -24,12 +24,12 @@ test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 train_data_trans = preprocessing.normalize(train_data_trans, norm='l2', axis=0)
 test_data_trans = preprocessing.normalize(test_data_trans, norm='l2', axis=0)
 
-a = RankingSVM(True).fit(train_data_trans, train_target, 20)
+a = RankingSVM(True).fit(train_data_trans, train_target, 7)
 
 # with open('./results/SVM/RSVM.pkl', 'rb') as _input:
 #     rsvm = pk.load(_input)
 
 e = a.predict(test_data_trans)
-m = UniversalMetrics(6, data[3], e)
+m = UniversalMetrics(data[3], e)
 print(m.precision())
 print(m.accuracy())

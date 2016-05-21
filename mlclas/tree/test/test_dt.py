@@ -27,6 +27,6 @@ print(a)
 # with open(file_name, 'wb') as output_:
 #     pickle.dump(a, output_, pickle.HIGHEST_PROTOCOL)
 
-e = UniversalMetrics(6, data[3], a)
+e = UniversalMetrics(data[3], a)
 print(e.precision())
 print(e.accuracy())

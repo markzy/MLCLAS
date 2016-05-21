@@ -23,7 +23,7 @@ kf = KFold(len(data), 3)
 
 
 def train_fuc(train_data, train_target, test_data):
-    return BPMLL(normalize=True, epoch=40, regulization=0.1).fit(train_data, train_target).predict(test_data)
+    return BPMLL(epoch=40).fit(train_data, train_target).predict(test_data)
 
 
 job_server = pp.Server()

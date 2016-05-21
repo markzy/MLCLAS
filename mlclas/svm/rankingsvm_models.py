@@ -22,9 +22,9 @@ class AllLabelInfo:
         """
         new_index = self.totalProduct
         product = len(label_array) * len(not_array)
-        self.eachProduct.append(product)
         self.eachRange.append((new_index, new_index + product))
 
+        self.eachProduct.append(product)
         self.totalProduct += product
 
     def get_shape(self, index, elaborate=False):

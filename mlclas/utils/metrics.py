@@ -2,11 +2,10 @@ from mlclas.utils.stats import Aggregate
 
 
 class UniversalMetrics:
-    def __init__(self, class_num, expected, result):
+    def __init__(self, expected, predicted):
         self.sampleNum = len(expected)
-        self.classNum = class_num
         self.expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
-        self.predictedLabels = result
+        self.predictedLabels = predicted
 
     def accuracy(self):
         result = 0

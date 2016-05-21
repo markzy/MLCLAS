@@ -9,9 +9,8 @@ It is distributed under the BSD license.
 MLCLAS is tested to work under Python 3.5, and on the systems of OS X and Linux.
 - NumPy >= 1.6.1
 - SciPy >= 0.9
-- scikit-learn >= 0.17.0 (required if you want to use classifiers in ensembles, coming soon.)
+- scikit-learn >= 0.17.0
 
 ## Documentation
 Coming soon.
-
 

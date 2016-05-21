@@ -1,27 +1,29 @@
 import copy
 import numpy as np
 import operator
+from mlclas.utils import UniversalMetrics
 
 
+# deprecated
 class Nomalizer:
-    def __init__(self, X_array, min_value, max_value):
-        self.X_array = X_array
+    def __init__(self, x_array, min_value, max_value):
+        self.X_array = x_array
         self.min_value = min_value
         self.max_value = max_value
 
     def normalize(self):
         if np.issubdtype(self.X_array.dtype, int):
-            X_array = self.X_array.astype('float32')
+            x_array = self.X_array.astype('float32')
         else:
-            X_array = copy.copy(self.X_array)
+            x_array = copy.copy(self.X_array)
 
-        samples, features = X_array.shape
+        samples, features = x_array.shape
         for i in range(features):
-            array_min = np.min(X_array[:, i])
-            array_max = np.max(X_array[:, i])
+            array_min = np.min(x_array[:, i])
+            array_max = np.max(x_array[:, i])
             for j in range(samples):
-                X_array[j, i] = ((X_array[j, i] - array_min) / (array_max - array_min) * (self.max_value - self.min_value)) + self.min_value
-        return X_array
+                x_array[j, i] = ((x_array[j, i] - array_min) / (array_max - array_min) * (self.max_value - self.min_value)) + self.min_value
+        return x_array
 
 
 class TrainPair:
@@ -38,49 +40,51 @@ class TrainPair:
 
 
 class ThresholdFunction:
-    def __init__(self, model_outlabels, ideal_labels):
-        self.parameters = []
-        self.build(model_outlabels, ideal_labels)
+    """ Threshold Function built according to the original paper specified in the bpmll.py """
 
-    def build(self, model_outlabels, ideal_labels):
+    def __init__(self, model_output, ideal_labels):
+        self.parameters = []
+        self.build(model_output, ideal_labels)
+
+    def build(self, model_output, ideal_labels):
         samples = len(ideal_labels)
         labels = len(ideal_labels[0])
-        threshholds = [0 for i in range(samples)]
+        threshholds = np.zeros(samples)
 
-        if len(model_outlabels) != samples or len(model_outlabels[0]) != labels:
-            raise Exception("inconsistent shape of two matrix")
+        if len(model_output) != samples or len(model_output[0]) != labels:
+            raise Exception("inconsistent shape of two input matrix while building ThresholdFunction")
 
-        for i in range(samples):
+        for sample_index in range(samples):
             label_value = [float('inf') for i in range(labels)]
             notlabel_value = [float('-inf') for i in range(labels)]
             for j in range(labels):
-                if ideal_labels[i][j] == 1:
-                    label_value[j] = model_outlabels[i][j]
+                if ideal_labels[sample_index][j] == 1:
+                    label_value[j] = model_output[sample_index][j]
                 else:
-                    notlabel_value[j] = model_outlabels[i][j]
+                    notlabel_value[j] = model_output[sample_index][j]
 
             label_min = min(label_value)
             notlabel_max = max(notlabel_value)
 
             if label_min != notlabel_max:
                 if label_min == float('inf'):
-                    threshholds[i] = notlabel_max + 0.1
+                    threshholds[sample_index] = notlabel_max + 0.1
                 elif notlabel_max == float('-inf'):
-                    threshholds[i] = label_min - 0.1
+                    threshholds[sample_index] = label_min - 0.1
                 else:
-                    threshholds[i] = (label_min + notlabel_max) / 2
+                    threshholds[sample_index] = (label_min + notlabel_max) / 2
             else:
-                threshholds[i] = label_min
+                threshholds[sample_index] = label_min
 
-        model_outlabels = np.concatenate((model_outlabels, np.array([np.ones(samples)]).T), axis=1)
-        self.parameters = np.linalg.lstsq(model_outlabels, threshholds)[0]
+        model_output = np.concatenate((model_output, np.array([np.ones(samples)]).T), axis=1)
+        self.parameters = np.linalg.lstsq(model_output, threshholds)[0]
 
     def compute_threshold(self, outputs):
         parameter_length = len(self.parameters)
         b_index = parameter_length - 1
 
         if len(outputs) != b_index:
-            raise Exception('inconsistent length')
+            raise Exception('inconsistent output length with the trained array')
 
         threshold = 0
         for i in range(b_index):
@@ -113,13 +117,15 @@ class ActivationFunction:
         return 1 - np.square(ActivationFunction.activate(_input))
 
 
-class BPMLLMetrics:
+class BPMLLMetrics(UniversalMetrics):
+    """ Metrics design for BPMLL according to the original paper """
     def __init__(self, expected, result):
         self.sampleNum = len(expected)
+        expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
 
-        self.expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
+        # self.predictedLabels = result.predictedLabels
+        super().__init__(expectedLabels, result.predictedLabels)
 
-        self.predictedLabels = result.predictedLabels
         self.topRankedLabels = result.topRankedLabels
         self.outputs = result.outputs
         self.possibleLabelNum = len(self.outputs[0])
@@ -127,6 +133,8 @@ class BPMLLMetrics:
 
         self.ap_prepared = False
         self.ap = None
+        self.rl_prepared = False
+        self.rl = None
 
     def hamming_loss(self):
         diff_sum = 0
@@ -162,6 +170,9 @@ class BPMLLMetrics:
         return (cover_sum / self.sampleNum) - 1
 
     def ranking_loss(self):
+        if self.rl_prepared is True:
+            return self.rl
+
         rloss_sum = 0
         ap_sum = 0
         for sample_index in range(self.sampleNum):
@@ -204,12 +215,16 @@ class BPMLLMetrics:
             ap_sum += fraction_sum / expected_num
 
         self.ap = ap_sum / self.sampleNum
+        self.rl = rloss_sum / self.sampleNum
         self.ap_prepared = True
+        self.rl_prepared = True
 
-        return rloss_sum / self.sampleNum
+        return self.rl
 
     def average_precision(self):
+        # contained in the ranking_loss function to save running time
         if self.ap_prepared is True:
             return self.ap
         else:
-            raise Exception('please run ranking_loss function first!')
+            self.ranking_loss()
+            return self.ap

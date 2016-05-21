@@ -1,7 +1,7 @@
 import numpy as np
 import math
-import scipy.sparse
 import operator
+from mlclas.utils.check import check_feature_input, check_target_input
 
 
 # Definition of a simple tree node
@@ -15,48 +15,90 @@ class TreeNode:
         self.split_info = None
 
     def leaf(self, instances):
+        """
+        function that makes this node a leaf
+        :param instances: MLInstances object
+        :return: None
+        """
         self.is_leaf = True
         if instances.samples == 0:
             return
 
         self.distribution = Distribution(instances)
 
-    def get_estimated_error(self, use_standard_error=True):
+    def get_estimated_errors(self):
         if self.is_leaf:
-            return self.distribution.num_incorrect()
-        elif use_standard_error:
-            totalnum = self.distribution.total() * self.distribution.classes
-            errors = self.left.get_estimated_error() + self.right.get_estimated_error()
+            return TreeNode.get_error_distribution(self.distribution)
+        else:
+            return self.left.get_estimated_errors() + self.right.get_estimated_errors()
+
+    @staticmethod
+    def get_error_distribution(distribution):
+        if distribution is not None:
+            totalnum = distribution.total() * distribution.classes
+            errors = distribution.num_incorrect()
             standard_error = math.sqrt(errors * (totalnum - errors) / totalnum)
             return errors + standard_error
-        else:
-            return self.left.get_estimated_error() + self.right.get_estimated_error()
 
     def get_prediected_labels(self):
         return self.distribution.predicted_labels()
 
-    def prune(self):
+    def access_by_index(self, index):
+        if index == 0:
+            return self.left
+        return self.right
+
+    def prune(self, raise_subtree):
+        """
+        Use pessimistic pruning strategy desingned by myself.
+        It depends on the error calculation of the nodes and subtree.
+        """
         if self.is_leaf is True:
             return
 
-        self.left.prune()
-        self.right.prune()
+        self.left.prune(raise_subtree)
+        self.right.prune(raise_subtree)
 
-        error_node = self.distribution.num_incorrect()
-        error_tree = self.get_estimated_error()
+        # error as a node
+        error_node = TreeNode.get_error_distribution(self.distribution)
+        # error as a tree
+        error_tree = self.get_estimated_errors()
 
-        # prune the subtree if true
-        if error_node <= error_tree:
+        # error for the largest branch
+        if raise_subtree:
+            if self.left.distribution.total() >= self.right.distribution.total():
+                branch_index = 0
+                error_largest_brach = self.left.get_estimated_errors()
+            else:
+                branch_index = 1
+                error_largest_brach = self.right.get_estimated_errors()
+        else:
+            error_largest_brach = float('inf')
+
+        # turn the subtree into a single node if true
+        if error_node <= error_tree and error_node <= error_largest_brach:
             self.left = None
             self.right = None
             self.is_leaf = True
             self.split_info = None
 
+        # raise the subtree if true, not possible when raise_subtree is False
+        if error_largest_brach < error_tree:
+            node = self.access_by_index(branch_index)
+            self.distribution = node.distribution
+            self.left = node.left
+            self.right = node.right
+            self.is_leaf = node.is_leaf
+            self.split_info = node.split_info
+
         return
 
 
 class MLInstaces:
-    def __init__(self, X, y):
+    """
+    Definition of a data structure that wraps all the training examples and provide useful methods.
+    """
+    def __init__(self, x, y):
         self.samples = 0
         self.features = 0
         self.classes = 0
@@ -64,26 +106,26 @@ class MLInstaces:
         self.all_attributes = None
         self.bin_labels = None
         self.instances = np.array([])
-        self.initialize(X, y)
+        self.initialize(x, y)
 
-    def initialize(self, X, y):
-        if isinstance(X, scipy.sparse.spmatrix):
-            X_array = X.toarray()
-        else:
-            X_array = np.array(X)
+    def initialize(self, x, y):
+        x = check_feature_input(x)
+        y = check_target_input(y)
 
-        y = np.array(y)
-        self.samples, self.features = X_array.shape
+        self.samples, self.features = x.shape
         self.classes = y.shape[1]
-        self.all_attributes = X_array
+        self.all_attributes = x
         self.bin_labels = y
         self.instances = np.array([i for i in range(self.samples)])
 
-        # pure test
+        # pure test: check if all the samples belong to same label set
         y_list = y.tolist()
         self.pure = y_list.count(y_list[0]) == len(y_list)
 
     def sort(self, attr_index):
+        """
+        method that sort the training samples by index, according to a specific attribute
+        """
         attr_values = self.all_attributes[:, attr_index]
 
         attr_dic = {}
@@ -95,6 +137,9 @@ class MLInstaces:
         return True
 
     def split(self, attr_index, split_value):
+        """
+        returns two split MLInstances according to the attr_index and split_value
+        """
         attr_values = self.all_attributes[:, attr_index]
         left = []
         right = []
@@ -116,14 +161,20 @@ class MLInstaces:
 
 
 class Distribution:
+    """
+    fundamental class!
+    It records the distribution of samples which corresponds to the distribution of a binary tree!
+    """
     def __init__(self, data):
         if not isinstance(data, tuple):
+            # initializing via MLInstances
             self.classes = data.classes
             self.left = np.zeros(data.classes)
             self.right = np.sum(data.bin_labels[data.instances], axis=0)
             self.left_num = 0
             self.right_num = data.samples
         else:
+            # initializing via (left_labels, right_labels)
             self.left = np.sum(data[0], axis=0)
             self.right = np.sum(data[1], axis=0)
             self.left_num = len(data[0])
@@ -146,6 +197,7 @@ class Distribution:
         return self.left + self.right
 
     def num_incorrect(self):
+        # return the number of incorrect predictions
         perclass_total = self.per_class()
         predicted = self.predicted_labels()
         num_total = self.total()
@@ -155,6 +207,7 @@ class Distribution:
         return np.sum(np.fabs(perclass_total - sum_temp))
 
     def predicted_labels(self):
+        # return the predicted label set according to this distribution
         perclass_total = self.per_class()
         num_total = self.total()
         labels = []
@@ -172,25 +225,47 @@ class Distribution:
 
 # only support numeric attributes now
 class ModelSelection:
+    """
+    CLass that help select the best split feature and split value
+    """
     def __init__(self, use_mdl=False, min_num=2):
         self.use_mdl = use_mdl
         self.min_num = min_num
 
     def select(self, instances):
-        best_attr = 0
-        best_split_value = 0
+        best_attr = None
+        best_split_value = None
         current_info = float('inf')
+
+        # check if there are enough instances
+        min_num = int(0.1 * instances.samples / instances.classes)
+        if min_num <= self.min_num:
+            min_num = self.min_num
+        elif min_num > 25:
+            min_num = 25
+
+        if instances.samples < 2 * min_num:
+            return
+
         for i in range(instances.features):
-            model = C45Split(i, self.use_mdl, self.min_num)
+            model = C45Split(i, self.use_mdl, min_num)
             result = model.build(instances)
             if result is None:
                 continue
             else:
                 split_value, info = result
+            """
+            usually we calculate information gain, for which larger is better.
+            To simplify, I calculate new_info in the formula [info_gain = old_info - new_info],
+            for which smaller is better.
+            """
             if info < current_info:
                 best_attr = i
                 best_split_value = split_value
                 current_info = info
+
+        if best_attr is None:
+            return
 
         return best_attr, best_split_value
 
@@ -200,24 +275,22 @@ class C45Split:
         self.attr_index = attr_index
         self.use_mdl = use_mdl
         self.minor = 1e-5
-        self.min_num = 2
+        self.min_num = min_num
 
     def build(self, data):
         last = 0
         count = 0
         split_index = 0
 
-        min_num = int(0.1 * data.samples / data.classes)
-        if min_num <= self.min_num:
-            min_num = self.min_num
-        elif min_num > 25:
-            min_num = 25
-
+        min_num = self.min_num
         attr_index = self.attr_index
+
         data.sort(self.attr_index)
         distribution = Distribution(data)
+
         current_info = Entropy.get_entropy(distribution)
         attr_values = data.all_attributes[:, attr_index][data.instances]
+
         for i in range(1, data.samples):
             # equals to ignore bits
             if (attr_values[i - 1] + self.minor) < attr_values[i]:
@@ -238,6 +311,11 @@ class C45Split:
         if best_split_value == attr_values[split_index]:
             best_split_value = attr_values[split_index - 1]
 
+        """
+        MDL correction, which is introduced in:
+        >   Quinlan, J. Ross. "Improved use of continuous attributes in C4. 5."
+            Journal of artificial intelligence research (1996): 77-90.
+        """
         if self.use_mdl:
             current_info += math.log2(count) / data.samples
 
@@ -245,6 +323,7 @@ class C45Split:
 
 
 class Entropy:
+    """ class that helps calculate entrophy introduced in the paper"""
     @staticmethod
     def get_mlent(y, samples):
         if samples < 1:
