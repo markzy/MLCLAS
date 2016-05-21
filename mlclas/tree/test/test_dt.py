@@ -5,7 +5,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import MultiLabelBinarizer
 import pickle
 from mlclas.tree.ml_dt import MLDecisionTree
-from mlclas.utils.metrics import UniversalMetrics
+from mlclas.stats import UniversalMetrics
 
 files = ['../../data/scene_train', '../../data/scene_test']
 
@@ -20,8 +20,8 @@ pca = PCA(n_components=(feature_size * 10) // 100)
 train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
 test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 
-a = MLDecisionTree().fit(train_data_trans, train_target).predict(test_data_trans)
-print(a)
+a = MLDecisionTree(min_num=10).fit(train_data_trans, train_target).predict(test_data_trans)
+# print(a)
 
 # file_name = '../results/MLDecisionTree.pkl'
 # with open(file_name, 'wb') as output_:

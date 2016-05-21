@@ -28,17 +28,28 @@ class TreeNode:
 
     def get_estimated_errors(self):
         if self.is_leaf:
-            return TreeNode.get_error_distribution(self.distribution)
+            return TreeNode.get_distribution_error(self.distribution)
         else:
             return self.left.get_estimated_errors() + self.right.get_estimated_errors()
 
     @staticmethod
-    def get_error_distribution(distribution):
+    def get_distribution_error(distribution):
         if distribution is not None:
-            totalnum = distribution.total() * distribution.classes
+            # totalnum = distribution.total() * distribution.classes
             errors = distribution.num_incorrect()
-            standard_error = math.sqrt(errors * (totalnum - errors) / totalnum)
-            return errors + standard_error
+            # standard_error = math.sqrt(errors * (totalnum - errors) / totalnum)
+            # regular = distribution.classes / 2
+            # return errors + standard_error
+            return errors
+
+    def get_subtree_errors(self):
+        if self.is_leaf:
+            return TreeNode.get_distribution_error(self.distribution)
+
+        totalnum = self.distribution.total() * self.distribution.classes
+        errors = self.get_estimated_errors()
+        standard_error = math.sqrt(errors * (totalnum - errors) / totalnum)
+        return errors + standard_error
 
     def get_prediected_labels(self):
         return self.distribution.predicted_labels()
@@ -60,18 +71,18 @@ class TreeNode:
         self.right.prune(raise_subtree)
 
         # error as a node
-        error_node = TreeNode.get_error_distribution(self.distribution)
+        error_node = TreeNode.get_distribution_error(self.distribution)
         # error as a tree
-        error_tree = self.get_estimated_errors()
+        error_tree = self.get_subtree_errors()
 
         # error for the largest branch
         if raise_subtree:
             if self.left.distribution.total() >= self.right.distribution.total():
                 branch_index = 0
-                error_largest_brach = self.left.get_estimated_errors()
+                error_largest_brach = self.left.get_subtree_errors()
             else:
                 branch_index = 1
-                error_largest_brach = self.right.get_estimated_errors()
+                error_largest_brach = self.right.get_subtree_errors()
         else:
             error_largest_brach = float('inf')
 
@@ -98,6 +109,7 @@ class MLInstaces:
     """
     Definition of a data structure that wraps all the training examples and provide useful methods.
     """
+
     def __init__(self, x, y):
         self.samples = 0
         self.features = 0
@@ -165,6 +177,7 @@ class Distribution:
     fundamental class!
     It records the distribution of samples which corresponds to the distribution of a binary tree!
     """
+
     def __init__(self, data):
         if not isinstance(data, tuple):
             # initializing via MLInstances
@@ -228,6 +241,7 @@ class ModelSelection:
     """
     CLass that help select the best split feature and split value
     """
+
     def __init__(self, use_mdl=False, min_num=2):
         self.use_mdl = use_mdl
         self.min_num = min_num
@@ -324,6 +338,7 @@ class C45Split:
 
 class Entropy:
     """ class that helps calculate entrophy introduced in the paper"""
+
     @staticmethod
     def get_mlent(y, samples):
         if samples < 1:

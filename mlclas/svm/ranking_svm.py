@@ -1,11 +1,11 @@
 import numpy as np
-import scipy.sparse
 import cvxopt as ct
 import pickle
 import operator
 from mlclas.svm.rankingsvm_models import *
 from mlclas.neural.bpmll_models import ThresholdFunction
 from mlclas.utils import check_feature_input, check_target_input
+from mlclas.stats import Normalizer
 
 
 class RankingSVM:
@@ -20,14 +20,17 @@ class RankingSVM:
     print_procedure:
     decide whether print the middle status of the training process to the std output
     """
-    def __init__(self, print_procedure=False):
+    def __init__(self, normalize=False, print_procedure=False):
         self.w = None
         self.threshold = None
+        self.normalize = normalize
         self.print_procedure = print_procedure
 
     def fit(self, x, y, c_factor):
         x = check_feature_input(x)
         y = check_target_input(y)
+
+        x = Normalizer.normalize(x, self.normalize)
 
         ct.solvers.options['show_progress'] = self.print_procedure
 
@@ -286,6 +289,7 @@ class RankingSVM:
 
     def predict(self, x):
         x = check_feature_input(x)
+        x = Normalizer.normalize(x, self.normalize)
         sample_num, feature_num = x.shape
         class_num = self.w.shape[0]
 

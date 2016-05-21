@@ -1,6 +1,7 @@
 import numpy as np
 from mlclas.utils.check import check_feature_input
 from mlclas.tree import dt_models as dtm
+from mlclas.stats import Normalizer
 
 
 class MLDecisionTree:
@@ -22,17 +23,19 @@ class MLDecisionTree:
         size of the final decision tree.
 
     """
-    def __init__(self, min_num=2, raise_subtree=False):
+
+    def __init__(self, min_num=2, normalize=False, raise_subtree=False):
         self.features = 0
         self.classes = 0
         self.root = dtm.TreeNode()
         self.stop_criterion = 0
         self.learned = False
         self.min_num = min_num
-        # self.useStandardError = True
+        self.normalize = normalize
         self.raise_subtree = raise_subtree
 
     def fit(self, x, y):
+        x = Normalizer.normalize(x, norm=self.normalize)
         instances = dtm.MLInstaces(x, y)
         self.features = instances.features
         self.classes = instances.classes
@@ -78,6 +81,7 @@ class MLDecisionTree:
             raise Exception('this tree has not been fitted')
 
         x = check_feature_input(x)
+        x = Normalizer.normalize(x, norm=self.normalize)
         samples, features = x.shape
 
         if features != self.features:

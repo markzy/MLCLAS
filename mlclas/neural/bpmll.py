@@ -3,7 +3,7 @@ import numpy as np
 import random
 from mlclas.neural import bpmll_models
 from mlclas.utils import check_feature_input, check_target_input
-from sklearn.preprocessing import normalize
+from mlclas.stats import Normalizer
 
 
 class BPMLL:
@@ -26,21 +26,21 @@ class BPMLL:
     regularization : float, (default=0.1)
         the parameter used to calculate the global error term, which may prevent over-fitting
 
-    normalize: bool, (default=True)
-        decide whether normalize the input array
+    normalize: bool, (default=False)
+        decide whether and how to normalize the input array
 
     print_procedure:
         decide whether print the middle status of the training process to the std output
 
     """
 
-    def __init__(self, neural=0.2, epoch=20, weight_decay=0.00001, regularization=0.1, normalized=False, print_procedure=False):
+    def __init__(self, neural=0.2, epoch=20, weight_decay=0.00001, regularization=0.1, normalize=False, print_procedure=False):
         self.features = 0
         self.classes = 0
         self.samples = 0
         self.neural_num = 0
 
-        self.normalized = normalized
+        self.normalize = normalize
         self.learn_rate = 0.05
 
         # these attributes affects the output
@@ -114,8 +114,7 @@ class BPMLL:
     def prepare_data(self, x, y):
         dataset = []
 
-        if self.normalized is True:
-            x = normalize(x, norm='l2', axis=0)
+        x = Normalizer.normalize(x, norm=self.normalize)
 
         for i in range(x.shape[0]):
             # skip samples whose Yi or n-Yi is an empty set
@@ -252,8 +251,7 @@ class BPMLL:
         if features != self.features:
             raise Exception("inconsistent feature dimension")
 
-        if self.normalized is True:
-            x = normalize(x, norm='l2', axis=0)
+        x = Normalizer.normalize(x, norm=self.normalize)
 
         result = bpmll_models.BPMLLResults(self.final_error)
 

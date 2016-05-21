@@ -1,7 +1,7 @@
 import copy
 import numpy as np
 import operator
-from mlclas.utils import UniversalMetrics
+from mlclas.stats import UniversalMetrics
 
 
 # deprecated
