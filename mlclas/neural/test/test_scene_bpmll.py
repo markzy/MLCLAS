@@ -19,13 +19,12 @@ pca = PCA(n_components=(feature_size * 10) // 100)
 train_data_trans = csr_matrix(pca.fit_transform(train_data.todense())).toarray()
 test_data_trans = csr_matrix(pca.transform(test_data.todense())).toarray()
 
-e = BPMLL(print_procedure=True, epoch=40, normalize='max').fit(train_data_trans, train_target)
-res = e.predict(test_data_trans,True)
+e = BPMLL(print_procedure=True, neural=0.4,regularization=0, epoch=40, normalize='max').fit(train_data_trans, train_target)
+res = e.predict(test_data_trans, True)
+
+# print(res.predictedLabels)
 
 em = bpmll_models.BPMLLMetrics(data[3], res)
-# print(em.predictedLabels)
-# print('----------')
-# print(data[3])
 print('hamming loss:' + str(em.hamming_loss()))
 print('one error:' + str(em.one_error()))
 print('coverage:' + str(em.coverage()))

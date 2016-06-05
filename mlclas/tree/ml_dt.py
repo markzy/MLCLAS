@@ -24,7 +24,7 @@ class MLDecisionTree:
 
     """
 
-    def __init__(self, min_num=2, normalize=False, raise_subtree=False):
+    def __init__(self, min_num=2, normalize=False, axis=0, raise_subtree=False):
         self.features = 0
         self.classes = 0
         self.root = dtm.TreeNode()
@@ -32,10 +32,11 @@ class MLDecisionTree:
         self.learned = False
         self.min_num = min_num
         self.normalize = normalize
+        self.axis = axis
         self.raise_subtree = raise_subtree
 
     def fit(self, x, y):
-        x = Normalizer.normalize(x, norm=self.normalize)
+        x = Normalizer.normalize(x, norm=self.normalize, axis=self.axis)
         instances = dtm.MLInstaces(x, y)
         self.features = instances.features
         self.classes = instances.classes
@@ -45,7 +46,9 @@ class MLDecisionTree:
         #     self.min_num = self.classes
 
         self.fit_tree(instances, self.root)
-        self.root.prune(self.raise_subtree)
+        countobj = dtm.Countobj()
+        self.root.prune(self.raise_subtree, countobj)
+        print("pruned: " + str(countobj.a))
         self.learned = True
         return self
 
@@ -81,7 +84,7 @@ class MLDecisionTree:
             raise Exception('this tree has not been fitted')
 
         x = check_feature_input(x)
-        x = Normalizer.normalize(x, norm=self.normalize)
+        x = Normalizer.normalize(x, norm=self.normalize, axis=self.axis)
         samples, features = x.shape
 
         if features != self.features:

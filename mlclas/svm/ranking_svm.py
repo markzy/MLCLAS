@@ -1,5 +1,6 @@
 import numpy as np
 import cvxopt as ct
+import cvxpy as cvx
 import pickle
 import operator
 from mlclas.svm.rankingsvm_models import *
@@ -20,19 +21,19 @@ class RankingSVM:
     print_procedure:
     decide whether print the middle status of the training process to the std output
     """
-    def __init__(self, normalize=False, print_procedure=False):
+
+    def __init__(self, normalize=False, axis=0, print_procedure=False):
         self.w = None
         self.threshold = None
         self.normalize = normalize
+        self.axis = axis
         self.print_procedure = print_procedure
 
     def fit(self, x, y, c_factor):
         x = check_feature_input(x)
         y = check_target_input(y)
 
-        x = Normalizer.normalize(x, self.normalize)
-
-        ct.solvers.options['show_progress'] = self.print_procedure
+        x = Normalizer.normalize(x, self.normalize, self.axis)
 
         sample_num, feature_num = x.shape
         class_num = y.shape[1]
@@ -57,7 +58,7 @@ class RankingSVM:
         It's length is sum(yi*nyi) for i in range(samle_num)
         """
         alpha = np.zeros(class_info.totalProduct)
-
+        alpha_var = cvx.Variable(class_info.totalProduct)
         """
         C has 4 dimensions, which is hard to present.
         In this program it has 2 dimensions, which is i(sample index) and k(class index).
@@ -90,14 +91,17 @@ class RankingSVM:
         bnds = []
         for i in range(sample_num):
             bnds += [c_factor / c_i[i] for j in range(c_i[i])]
+        bnds = np.array(bnds)
 
-        G_lp = ct.matrix(np.concatenate([-np.eye(class_info.totalProduct), np.eye(class_info.totalProduct)]))
-        h_lp = ct.matrix(np.concatenate([np.zeros(class_info.totalProduct), np.array(bnds)]))
+        zeros = np.zeros(class_info.totalProduct)
+        zeros.fill(1e-5)
         A_lp = []
         for k in range(1, class_num):
             A_lp.append(np.concatenate(c[:, k]).tolist())
-        A_lp = ct.matrix(np.array(A_lp))
-        b_lp = ct.matrix(np.zeros(class_num - 1))
+        A_lp = np.array(A_lp)
+        b_lp = np.zeros(class_num - 1)
+
+        cons = [zeros <= alpha_var, alpha_var <= bnds, A_lp * alpha_var == b_lp]
 
         converge = False
         iteration_count = 0
@@ -131,9 +135,6 @@ class RankingSVM:
             solve min<g, alpha_new> with corresponding constraints
             """
 
-            # finally trying to ues cvxopt
-            c_lp = ct.matrix(g_ikl)
-
             if self.print_procedure:
                 print('iteration %d...' % iteration_count)
 
@@ -152,18 +153,11 @@ class RankingSVM:
             cvxopt.solvers.lp(c, G, h[, A, b[, solver[, primalstart[, dualstart]]]])
             """
 
-            sol = ct.solvers.lp(c_lp, G_lp, h_lp, A_lp, b_lp)
-            sol_matrix = sol['x']
+            obj = cvx.Minimize(cvx.sum_entries(g_ikl * alpha_var))
+            prob = cvx.Problem(obj, cons)
+            prob.solve()
 
-            # some code used for persisting middle results, for test usages
-            # file_name = '/Users/Mark/PycharmProjects/multi_label_classification/results/SVM/RSVM.pkl'
-            # with open(file_name, 'wb') as op:
-            #     pickle.dump(sol['x'], op, pickle.HIGHEST_PROTOCOL)
-            # exit()
-            # with open(file_name, 'rb') as ip:
-            #     sol_matrix = pickle.load(ip)
-
-            alpha_new = np.array(sol_matrix).T[0]
+            alpha_new = np.array(alpha_var.value).T[0]
 
             """ now the problem collapse into a really simple qp problem """
             # compute beta_new
@@ -244,11 +238,6 @@ class RankingSVM:
             else:
                 alpha += final_lambda * alpha_new
 
-        # test code: preserve final alpha
-        # with open('results/SVM/alpha.pkl', 'wb') as _input:
-        #     pickle.dump(alpha, _input, pickle.HIGHEST_PROTOCOL)
-        #     print('successfully preserved final alpha')
-
         """ compute w and b via KKT conditions """
         w = [0 for i in range(class_num)]
         for k in range(class_num):
@@ -289,7 +278,7 @@ class RankingSVM:
 
     def predict(self, x):
         x = check_feature_input(x)
-        x = Normalizer.normalize(x, self.normalize)
+        x = Normalizer.normalize(x, self.normalize, self.axis)
         sample_num, feature_num = x.shape
         class_num = self.w.shape[0]
 

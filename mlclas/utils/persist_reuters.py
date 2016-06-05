@@ -2,7 +2,6 @@ from peewee import *
 import re
 import string
 from operator import itemgetter
-import random
 import pickle
 
 firstN = 9
@@ -12,25 +11,25 @@ db = MySQLDatabase('classification', host="localhost", user="root", passwd="root
 topic_dic = {0: 'earnings', 1: 'acquisitions', 2: 'commodity', 3: 'economics', 4: 'interest', 5: 'energy', 6: 'money-fx', 7: 'shipping',
              8: 'currency'}
 
-with open("data/topic_subcategory") as topic_source:
+with open("../data/topic_subcategory") as topic_source:
     lines = topic_source.read().split()
 
 subcategory_dic = {}
-parent_pattern = re.compile('.*\((.*)\)')
+# parent_pattern = re.compile('.*\((.*)\)')
 
 index = 0
 for line in lines:
     if line.isdigit():
         index = int(line)
     else:
-        mc = parent_pattern.match(line)
-        if mc:
-            subcategory_dic[str.lower(mc.group(1))] = index
-        else:
-            subcategory_dic[str.lower(line)] = index
+        # mc = parent_pattern.match(line)
+        # if mc:
+        #     subcategory_dic[str.lower(mc.group(1))] = index
+        # else:
+        subcategory_dic[str.lower(line)] = index
 
 
-class BPMLL(Model):
+class Reuters(Model):
     id = IntegerField()
     topics = CharField(200)
     body = CharField(15000)
@@ -41,13 +40,13 @@ class BPMLL(Model):
 
 db.connect()
 
-with open("data/stop_words.txt") as source:
+with open("../data/stop_words.txt") as source:
     all_contents = source.read()
     regex = re.compile('\'')
     clear_up = regex.sub('\n\n', all_contents)
     stop_words = set(clear_up.split("\n\n"))
 
-articles = BPMLL.select()
+articles = Reuters.select()
 
 digit_reg = re.compile('[0-9]+')
 punctuation_reg = re.compile('[%s\n\t\r]' % re.escape(string.punctuation))
@@ -91,6 +90,12 @@ for topics in topics_all:
             tmp.append(subcategory_dic[topic])
     organized_topics_all.append(tmp)
 
+with open("../data/reuters/category.pkl",'wb') as destination:
+    pickle.dump(organized_topics_all, destination, pickle.HIGHEST_PROTOCOL)
+    print('ok')
+
+exit()
+
 # feture selection
 # remove stop words first
 for sw in stop_words:
@@ -106,7 +111,7 @@ if select_num < word_num * 0.02:
 
 sorted_output = sorted(document_frequency.items(), key=itemgetter(1), reverse=True)
 selected_output = sorted_output[0:select_num]
-random.shuffle(selected_output)
+# random.shuffle(selected_output)
 
 # final selection
 selected_df = {}
@@ -124,7 +129,7 @@ for single_tf in tf_all:
             selected_tf[vocabulary[word]] = single_tf[word]
     selected_tf_all.append(selected_tf)
 
-folder_path = 'data/Reuters/'
+folder_path = '../data/reuters/'
 attribute_path = folder_path + 'first' + str(firstN) + '_data.pkl'
 target_path = folder_path + 'first' + str(firstN) + '_target.pkl'
 with open(attribute_path,'wb') as destination:

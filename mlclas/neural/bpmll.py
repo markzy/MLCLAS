@@ -34,13 +34,14 @@ class BPMLL:
 
     """
 
-    def __init__(self, neural=0.2, epoch=20, weight_decay=0.00001, regularization=0.1, normalize=False, print_procedure=False):
+    def __init__(self, neural=0.2, epoch=20, weight_decay=0.00001, regularization=0.1, normalize=False, axis=0, print_procedure=False):
         self.features = 0
         self.classes = 0
         self.samples = 0
         self.neural_num = 0
 
         self.normalize = normalize
+        self.axis = axis
         self.learn_rate = 0.05
 
         # these attributes affects the output
@@ -71,15 +72,15 @@ class BPMLL:
             Data.
 
         y : (sparse) array-like, shape = [n_samples, ], [n_samples, n_classes]
-            Multi-label targets.
+            Multi-Label targets.
 
         Returns
         -------
         self
         """
 
-        if self.trained is True:
-            raise Exception('this classifier has already been trained, please create a new classifier')
+        # if self.trained is True:
+        #     raise Exception('this classifier has already been trained, please create a new classifier')
 
         x = check_feature_input(x)
         y = check_target_input(y)
@@ -114,7 +115,7 @@ class BPMLL:
     def prepare_data(self, x, y):
         dataset = []
 
-        x = Normalizer.normalize(x, norm=self.normalize)
+        x = Normalizer.normalize(x, norm=self.normalize, axis=self.axis)
 
         for i in range(x.shape[0]):
             # skip samples whose Yi or n-Yi is an empty set
@@ -251,7 +252,7 @@ class BPMLL:
         if features != self.features:
             raise Exception("inconsistent feature dimension")
 
-        x = Normalizer.normalize(x, norm=self.normalize)
+        x = Normalizer.normalize(x, norm=self.normalize, axis=self.axis)
 
         result = bpmll_models.BPMLLResults(self.final_error)
 

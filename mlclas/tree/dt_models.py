@@ -4,6 +4,11 @@ import operator
 from mlclas.utils.check import check_feature_input, check_target_input
 
 
+class Countobj:
+    def __init__(self):
+        self.a = 0
+
+
 # Definition of a simple tree node
 class TreeNode:
     def __init__(self):
@@ -35,12 +40,9 @@ class TreeNode:
     @staticmethod
     def get_distribution_error(distribution):
         if distribution is not None:
-            # totalnum = distribution.total() * distribution.classes
             errors = distribution.num_incorrect()
-            # standard_error = math.sqrt(errors * (totalnum - errors) / totalnum)
-            # regular = distribution.classes / 2
-            # return errors + standard_error
-            return errors
+            regular = 1 / 2
+            return errors + regular
 
     def get_subtree_errors(self):
         if self.is_leaf:
@@ -59,7 +61,7 @@ class TreeNode:
             return self.left
         return self.right
 
-    def prune(self, raise_subtree):
+    def prune(self, raise_subtree, countobj):
         """
         Use pessimistic pruning strategy desingned by myself.
         It depends on the error calculation of the nodes and subtree.
@@ -67,8 +69,8 @@ class TreeNode:
         if self.is_leaf is True:
             return
 
-        self.left.prune(raise_subtree)
-        self.right.prune(raise_subtree)
+        self.left.prune(raise_subtree, countobj)
+        self.right.prune(raise_subtree, countobj)
 
         # error as a node
         error_node = TreeNode.get_distribution_error(self.distribution)
@@ -88,6 +90,7 @@ class TreeNode:
 
         # turn the subtree into a single node if true
         if error_node <= error_tree and error_node <= error_largest_brach:
+            countobj.a += 1
             self.left = None
             self.right = None
             self.is_leaf = True
@@ -258,6 +261,7 @@ class ModelSelection:
         elif min_num > 25:
             min_num = 25
 
+        # min_num = 2
         if instances.samples < 2 * min_num:
             return
 

@@ -4,28 +4,6 @@ import operator
 from mlclas.stats import UniversalMetrics
 
 
-# deprecated
-class Nomalizer:
-    def __init__(self, x_array, min_value, max_value):
-        self.X_array = x_array
-        self.min_value = min_value
-        self.max_value = max_value
-
-    def normalize(self):
-        if np.issubdtype(self.X_array.dtype, int):
-            x_array = self.X_array.astype('float32')
-        else:
-            x_array = copy.copy(self.X_array)
-
-        samples, features = x_array.shape
-        for i in range(features):
-            array_min = np.min(x_array[:, i])
-            array_max = np.max(x_array[:, i])
-            for j in range(samples):
-                x_array[j, i] = ((x_array[j, i] - array_min) / (array_max - array_min) * (self.max_value - self.min_value)) + self.min_value
-        return x_array
-
-
 class TrainPair:
     def __init__(self, attributes, labels):
         self.attributes = attributes
