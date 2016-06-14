@@ -1,7 +1,5 @@
 import numpy as np
-import cvxopt as ct
 import cvxpy as cvx
-import pickle
 import operator
 from mlclas.svm.rankingsvm_models import *
 from mlclas.neural.bpmll_models import ThresholdFunction
