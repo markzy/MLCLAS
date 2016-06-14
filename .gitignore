@@ -2,4 +2,5 @@
 .DS_Store
 __pycache__
 mlclas/data
+test
 mlclas/results
