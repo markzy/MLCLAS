@@ -6,7 +6,7 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from mlclas.neural import BPMLL
 from mlclas.stats.metrics import RankMetrics
 
-files = ['datasets/scene_train', 'datasets/scene_train']
+files = ['datasets/scene_train', 'datasets/scene_test']
 
 # load files
 data = datasets.load_svmlight_files(files, multilabel=True)

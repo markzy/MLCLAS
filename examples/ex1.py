@@ -10,7 +10,7 @@ from mlclas.neural import BPMLL
 from mlclas.svm import RankingSVM
 from mlclas.stats import UniversalMetrics
 
-files = ['datasets/scene_train', 'datasets/scene_train']
+files = ['datasets/scene_train', 'datasets/scene_test']
 
 # load files
 data = datasets.load_svmlight_files(files, multilabel=True)
@@ -46,7 +46,8 @@ test_data_trans = csr_matrix(pca.transform(test_data.todense()))
     8.  result = RankingSVM(normalize='l2', print_procedure=True).fit(train_data_trans, train_target, 8).predict(test_data_trans)
 
 """
-result = ClassifierChains(LinearSVC()).fit(train_data, train_target).predict(test_data)
+
+result = MLDecisionTree(min_num=10).fit(train_data_trans, train_target).predict(test_data_trans)
 
 # metrics
 m = UniversalMetrics(test_target, result)
