@@ -22,12 +22,11 @@ train_data_trans = csr_matrix(pca.fit_transform(train_data.todense()))
 test_data_trans = csr_matrix(pca.transform(test_data.todense()))
 
 
-result = BPMLL(print_procedure=True, neural=0.4, regularization=0, epoch=40, normalize='max').fit(train_data_trans, train_target).predict(test_data_trans, rank_metrics=True)
+result = BPMLL(print_procedure=True, neural=0.4, regularization=0, epoch=40, normalize='max').fit(train_data_trans, train_target).predict(test_data_trans, rank_results=True)
 
 """
-    special metric for rank systems like BPMLL and RankingSVM, compatible with RankingSVM
-    if you collect required information in predict() function of RankingSVM.
-    See predict() function of BPMLL if you want to compute results in these metrics.
+    special metric for rank systems like BPMLL and RankingSVM, you can use RankMetrics
+    when you specify rank_results=True in predict functions
 """
 metric = RankMetrics(test_target, result)
 print('hamming loss:' + str(metric.hamming_loss()))

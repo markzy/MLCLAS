@@ -41,13 +41,12 @@ test_data_trans = csr_matrix(pca.transform(test_data.todense()))
     6.  result = MLDecisionTree(min_num=10).fit(train_data_trans, train_target).predict(test_data_trans)
 
     7.  result = BPMLL(print_procedure=True, neural=0.4, regularization=0, epoch=40, normalize='max').fit(train_data_trans, train_target)
-                .predict(test_data_trans, use_metrics=False)
+                .predict(test_data_trans)
 
     8.  result = RankingSVM(normalize='l2', print_procedure=True).fit(train_data_trans, train_target, 8).predict(test_data_trans)
 
 """
-
-result = MLDecisionTree(min_num=10).fit(train_data_trans, train_target).predict(test_data_trans)
+result = ClassifierChains(LinearSVC()).fit(train_data, train_target).predict(test_data)
 
 # metrics
 m = UniversalMetrics(test_target, result)

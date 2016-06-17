@@ -4,7 +4,7 @@ import operator
 from mlclas.svm.rankingsvm_models import *
 from mlclas.neural.bpmll_models import ThresholdFunction
 from mlclas.utils import check_feature_input, check_target_input
-from mlclas.stats import Normalizer
+from mlclas.stats import Normalizer, RankResults
 
 
 class RankingSVM:
@@ -26,10 +26,13 @@ class RankingSVM:
         self.normalize = normalize
         self.axis = axis
         self.print_procedure = print_procedure
+        self.trained = False
 
     def fit(self, x, y, c_factor):
         x = check_feature_input(x)
         y = check_target_input(y)
+
+        self.features = x.shape[1]
 
         x = Normalizer.normalize(x, self.normalize, self.axis)
 
@@ -272,35 +275,49 @@ class RankingSVM:
         self.threshold = ThresholdFunction(model_outputs, y)
         self.w = w_extend
 
+        self.trained = True
         return self
 
-    def predict(self, x):
+    def predict(self, x, rank_results=False):
+        if self.trained is False:
+            raise Exception('this classifier has not been trained')
+
         x = check_feature_input(x)
         x = Normalizer.normalize(x, self.normalize, self.axis)
         sample_num, feature_num = x.shape
         class_num = self.w.shape[0]
 
         if feature_num != self.w.shape[1] - 1:
-            raise Exception('inconsistent shape of training samples!')
+            raise Exception('testing samples have inconsistent shape of training samples!')
 
         x_extend = np.concatenate((x, np.array([np.ones(sample_num)]).T), axis=1)
-
         threshold = self.threshold
         outputs = np.dot(x_extend, self.w.T)
-        result = []
+
+        result = RankResults()
+
         for index in range(sample_num):
             sample_result = []
             op = outputs[index]
             th = threshold.compute_threshold(op)
+
+            top_label = None
+            max_value = float('-inf')
             count = 0
             for j in range(class_num):
                 if op[j] >= th:
                     count += 1
                     sample_result.append(j)
+                if op[j] > max_value:
+                    top_label = j
+                    max_value = op[j]
+
             if count == 0:
-                op_index, op_value = max(enumerate(op), key=operator.itemgetter(1))
-                for j in range(class_num):
-                    if op[j] == op_value:
-                        sample_result.append(j)
-            result.append(sample_result)
+                sample_result.append(top_label)
+
+            result.add(sample_result, top_label, op)
+
+        if rank_results is False:
+            result = result.predictedLabels
+
         return result

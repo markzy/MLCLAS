@@ -71,10 +71,6 @@ class ClassifierChains:
 
             X = hstack([X, temp_result])
 
-        for i in range(dataset_length):
-            if len(result[i]) == 0:
-                result[i].append(None)
-
         return result
 
 
@@ -288,7 +284,5 @@ class MLKNN:
                 probability = self.ph[each_label] * pch / pcnh
                 if probability > 1:
                     res[index].append(each_label)
-            if len(res[index]) == 0:
-                res[index].append(None)
 
         return res

@@ -236,11 +236,11 @@ class BPMLL:
 
         self.threshold = bpmll_models.ThresholdFunction(model_outputs, ideal_labels)
 
-    def predict(self, x, rank_metrics=False):
+    def predict(self, x, rank_results=False):
         """
         predict process
         :param x: feature matrix
-        :param rank_metrics: decide whether return RankResults object or the actual output
+        :param rank_results: decide whether return RankResults object or the actual output
         :return: result: RankResults
         """
         if self.trained is False:
@@ -254,7 +254,7 @@ class BPMLL:
 
         x = Normalizer.normalize(x, norm=self.normalize, axis=self.axis)
 
-        result = RankResults(self.final_error)
+        result = RankResults()
 
         for sample_index in range(samples):
             sample_result = []
@@ -273,13 +273,13 @@ class BPMLL:
                     top_label = j
                     max_value = c[j]
 
-            # append the top label if no label satisfies the threshold function
+            # append the top label if no label satisfies the threshold value
             if count == 0:
                 sample_result.append(top_label)
 
             result.add(sample_result, top_label, c)
 
-        if rank_metrics is False:
+        if rank_results is False:
             result = result.predictedLabels
 
         return result

@@ -23,7 +23,7 @@ class UniversalMetrics:
     def __init__(self, expected, predicted):
         self.sampleNum = len(expected)
         self.expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
-        # fix for divide by zero problems
+        # fix for divide by zero problems, this will not affect the final result
         for predict_index in range(len(predicted)):
             if len(predicted[predict_index]) == 0:
                 predicted[predict_index].append(None)
@@ -47,11 +47,10 @@ class UniversalMetrics:
 
 
 class RankResults:
-    def __init__(self, global_error):
+    def __init__(self):
         self.predictedLabels = []
         self.topRankedLabels = []
         self.outputs = []
-        self.final_global_error = global_error
 
     def add(self, predict_set, top_label, output):
         self.predictedLabels.append(predict_set)
@@ -60,19 +59,17 @@ class RankResults:
 
 
 class RankMetrics(UniversalMetrics):
-    """ Metrics design for BPMLL according to the original paper """
+    """ Metrics design for ranking systems"""
 
     def __init__(self, expected, result):
         self.sampleNum = len(expected)
         expectedLabels = [[int(i) for i in expected[j]] for j in range(len(expected))]
 
-        # self.predictedLabels = result.predictedLabels
         super().__init__(expectedLabels, result.predictedLabels)
 
         self.topRankedLabels = result.topRankedLabels
         self.outputs = result.outputs
         self.possibleLabelNum = len(self.outputs[0])
-        self.final_error = result.final_global_error
 
         self.ap_prepared = False
         self.ap = None
