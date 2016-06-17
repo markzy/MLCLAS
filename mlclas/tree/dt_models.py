@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import operator
-from mlclas.utils.check import check_feature_input, check_target_input
+from mlclas.utils import check_feature_input, check_target_input
 
 
 class Countobj:
@@ -110,7 +110,7 @@ class TreeNode:
 
 class MLInstaces:
     """
-    Definition of a data structure that wraps all the training examples and provide useful methods.
+    Definition of a datasets structure that wraps all the training examples and provide useful methods.
     """
 
     def __init__(self, x, y):

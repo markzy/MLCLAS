@@ -1,5 +1,4 @@
-import numpy as np
-from mlclas.utils.check import check_feature_input
+from mlclas.utils import check_feature_input
 from mlclas.tree import dt_models as dtm
 from mlclas.stats import Normalizer
 
@@ -7,8 +6,8 @@ from mlclas.stats import Normalizer
 class MLDecisionTree:
     """
     Multilabel Decision Tree, the learning process is based on:
-    >   Clare, Amanda, and Ross D. King. "Knowledge discovery in multi-label phenotype data."
-        Principles of data mining and knowledge discovery. Springer Berlin Heidelberg, 2001. 42-53.
+    >   Clare, Amanda, and Ross D. King. "Knowledge discovery in multi-label phenotype datasets."
+        Principles of datasets mining and knowledge discovery. Springer Berlin Heidelberg, 2001. 42-53.
     The pruning strategy is derived from:
     >   Mingers, John. "An empirical comparison of pruning methods for decision tree induction."
         Machine learning 4.2 (1989): 227-243.
@@ -67,7 +66,7 @@ class MLDecisionTree:
 
         attr, value = pack
 
-        # split data for further splitting
+        # split datasets for further splitting
         left_data, right_data, distribution = data.split(attr, value)
 
         treenode.distribution = distribution

@@ -11,7 +11,7 @@ db = MySQLDatabase('classification', host="localhost", user="root", passwd="root
 topic_dic = {0: 'earnings', 1: 'acquisitions', 2: 'commodity', 3: 'economics', 4: 'interest', 5: 'energy', 6: 'money-fx', 7: 'shipping',
              8: 'currency'}
 
-with open("../data/topic_subcategory") as topic_source:
+with open("../datasets/topic_subcategory") as topic_source:
     lines = topic_source.read().split()
 
 subcategory_dic = {}
@@ -40,7 +40,7 @@ class Reuters(Model):
 
 db.connect()
 
-with open("../data/stop_words.txt") as source:
+with open("../datasets/stop_words.txt") as source:
     all_contents = source.read()
     regex = re.compile('\'')
     clear_up = regex.sub('\n\n', all_contents)
@@ -90,7 +90,7 @@ for topics in topics_all:
             tmp.append(subcategory_dic[topic])
     organized_topics_all.append(tmp)
 
-with open("../data/reuters/category.pkl",'wb') as destination:
+with open("../datasets/reuters/category.pkl",'wb') as destination:
     pickle.dump(organized_topics_all, destination, pickle.HIGHEST_PROTOCOL)
     print('ok')
 
@@ -129,7 +129,7 @@ for single_tf in tf_all:
             selected_tf[vocabulary[word]] = single_tf[word]
     selected_tf_all.append(selected_tf)
 
-folder_path = '../data/reuters/'
+folder_path = '../datasets/reuters/'
 attribute_path = folder_path + 'first' + str(firstN) + '_data.pkl'
 target_path = folder_path + 'first' + str(firstN) + '_target.pkl'
 with open(attribute_path,'wb') as destination:

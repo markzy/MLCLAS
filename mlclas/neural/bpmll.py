@@ -3,7 +3,7 @@ import numpy as np
 import random
 from mlclas.neural import bpmll_models
 from mlclas.utils import check_feature_input, check_target_input
-from mlclas.stats import Normalizer
+from mlclas.stats import Normalizer, RankResults
 
 
 class BPMLL:
@@ -236,12 +236,12 @@ class BPMLL:
 
         self.threshold = bpmll_models.ThresholdFunction(model_outputs, ideal_labels)
 
-    def predict(self, x, use_metrics=False):
+    def predict(self, x, rank_metrics=False):
         """
         predict process
         :param x: feature matrix
-        :param use_metrics: decide whether return BPMLLResults object or the actual output
-        :return: result: BPMLLResults
+        :param rank_metrics: decide whether return RankResults object or the actual output
+        :return: result: RankResults
         """
         if self.trained is False:
             raise Exception('this classifier has not been trained')
@@ -254,7 +254,7 @@ class BPMLL:
 
         x = Normalizer.normalize(x, norm=self.normalize, axis=self.axis)
 
-        result = bpmll_models.BPMLLResults(self.final_error)
+        result = RankResults(self.final_error)
 
         for sample_index in range(samples):
             sample_result = []
@@ -279,7 +279,7 @@ class BPMLL:
 
             result.add(sample_result, top_label, c)
 
-        if use_metrics is False:
+        if rank_metrics is False:
             result = result.predictedLabels
 
         return result

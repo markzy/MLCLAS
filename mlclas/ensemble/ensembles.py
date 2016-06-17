@@ -1,3 +1,9 @@
+"""
+This file implements some ensemble classifiers.
+Some algorithms may not work well beacause they are implemented during my early work,
+including CalibratedLabelRanking and RandomKLabelsets.
+"""
+
 import numpy as np
 import copy
 import math
@@ -142,6 +148,7 @@ class RandomKLabelsets:
         self.samples = y.shape[0]
         self.maps = []
         self.estimators_ = []
+        # TODO:k should be changed
         k = 3
         n = 2 * self.classes_
         labels = [i for i in range(self.classes_)]
@@ -240,8 +247,8 @@ class MLKNN:
         self.ph = (self.s + self.ph) / (2 * self.s + self.samples)
         self.ph /= 1 - self.ph
 
-        self.kj = np.zeros((self.classes,self.k+1))
-        self.knj = np.zeros((self.classes,self.k+1))
+        self.kj = np.zeros((self.classes, self.k + 1))
+        self.knj = np.zeros((self.classes, self.k + 1))
 
         for index in range(self.samples):
             sample_label = y_reverse[index]

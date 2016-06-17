@@ -14,7 +14,7 @@ def check_feature_input(array):
         raise Exception('input feature matrix is not a valid 2D array')
 
     if not np.issubdtype(x_array.dtype, int) and not np.issubdtype(x_array.dtype, float):
-        raise Exception('data in the input matrix is neither int or float')
+        raise Exception('datasets in the input matrix is neither int or float')
 
     return x_array
 
