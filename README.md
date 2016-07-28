@@ -2,6 +2,7 @@
 MLCLAS is a Python module for multi-label classification built on Scipy.
 
 The project is built during my graduation project for bachelor's degree.
+
 It is distributed under the BSD license.
 
 ## Dependencies
@@ -20,5 +21,5 @@ It is promised to work as intended with these pakages:
 Lower version of dependencies may cause unexpected problems, so it is strongly recommended to update these packages.
 
 ## Documentation
-Coming soon.
+The functions provided by this library is quite concise. You may view the examples in the `examples` folder for reference.
 
