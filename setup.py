@@ -1,11 +1,13 @@
-import ez_setup
-ez_setup.use_setuptools()
-
-from setuptools import setup, find_packages
+try:
+    from setuptools import setup, find_packages
+except ImportError:
+    import ez_setup
+    ez_setup.use_setuptools()
+    from setuptools import setup, find_packages
 
 setup(
     name='MLCLAS',
-    version='0.0.2',
+    version='0.0.3',
     description='Multi-label classification algorithms implemented in Python',
     author='Mark Zhou',
     author_email='zhouyao0808@gmail.com',
