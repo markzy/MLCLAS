@@ -42,7 +42,7 @@ def check_target_input(array):
     return y_array
 
 
-# some test code
+# some tests code
 if __name__ == '__main__':
     print(check_feature_input([[1, 2], [1, 3]]))
     print(check_target_input([{'scipy', 'numpy'}, {'sklearn'}]))

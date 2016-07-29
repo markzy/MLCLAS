@@ -133,7 +133,7 @@ class MLInstaces:
         self.bin_labels = y
         self.instances = np.array([i for i in range(self.samples)])
 
-        # pure test: check if all the samples belong to same label set
+        # pure tests: check if all the samples belong to same label set
         y_list = y.tolist()
         self.pure = y_list.count(y_list[0]) == len(y_list)
 

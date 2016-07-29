@@ -2,4 +2,10 @@
 .DS_Store
 __pycache__
 data
-test
+tests
+MLCLAS.egg-info/
+build/
+dist/
+files.txt
+setuptools-25.1.1-py3.5.egg
+setuptools-25.1.1.zip

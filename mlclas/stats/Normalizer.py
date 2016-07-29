@@ -28,7 +28,7 @@ class Normalizer:
         else:
             raise Exception('Unknown type of normalization ' + str(norm))
 
-# test code
+# tests code
 if __name__ == '__main__':
     a = np.array([[1.0, 2.0], [3.0, 4.0]])
     print(Normalizer.normalize(a,'l1',axis=1))

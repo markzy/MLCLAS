@@ -40,7 +40,7 @@ class MLDecisionTree:
         self.features = instances.features
         self.classes = instances.classes
 
-        # test
+        # tests
         # if self.min_num <= self.classes:
         #     self.min_num = self.classes
 

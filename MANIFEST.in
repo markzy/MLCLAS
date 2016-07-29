@@ -1,0 +1,2 @@
+include MANIFEST.in ez_setup.py setup.py setup.cfg README.md LICENSE.txt
+recursive-include mlclas *
