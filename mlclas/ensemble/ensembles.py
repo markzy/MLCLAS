@@ -235,8 +235,6 @@ class MLKNN:
         y_reverse = []
         for i in range(self.samples):
             sample_label = [j for j in range(self.classes) if y[i][j] == 1]
-            for label in sample_label:
-                self.ph[label] += 1
             y_reverse.append(sample_label)
         self.y = y_reverse
 
